@@ -6,6 +6,7 @@ Android, and iOS.
 ## Features
 
 - **Structured Logging** - Attach key-value attributes to log events
+- **Basic Logging** - Simple log levels and messages
 - **Log Levels** - VERBOSE, DEBUG, INFO, WARN, ERROR, FATAL, OFF
 - **Configurable** - Per-logger level overrides and multiple sinks
 - **Context Support** - Thread-local and coroutine context propagation
@@ -23,7 +24,102 @@ dependencies {
 }
 ```
 
-## Quick Start
+Check other artifacts
+at [Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa)
+
+## Simple Log API
+
+For quick, non-structured logging without the need for configuration, use the simple `Log` API:
+
+### Basic Usage
+
+```kotlin
+// Direct logging with default tag
+Log.v("Verbose message")
+Log.d("Debug message")
+Log.i("App started")
+Log.w("Warning message")
+Log.e("Error occurred")
+Log.fatal("Critical failure")
+
+// With exceptions
+Log.e("Operation failed", throwable = exception)
+Log.w("Recovered from error", throwable = exception)
+
+// With custom tag
+Log.i("User logged in", tag = "Auth")
+Log.d("Request completed", tag = "Network")
+```
+
+### Set Default Tag
+
+```kotlin
+// Set once during app initialization
+Log.setDefaultTag("MyApp")
+
+// All subsequent logs use this tag
+Log.i("This uses 'MyApp' tag")
+```
+
+### Class-Based Logger
+
+Create a logger instance with automatic class name as tag:
+
+```kotlin
+class UserViewModel {
+    private val log = Log.withClassTag()
+
+    fun login() {
+        log.d("Login attempt started")
+
+        try {
+            // Login logic
+            log.i("Login successful")
+        } catch (e: Exception) {
+            log.e("Login failed", throwable = e)
+        }
+    }
+}
+```
+
+### Module-Based Logger
+
+Create a logger for a specific module or component:
+
+```kotlin
+object NetworkModule {
+    private val log = Log.withTag("Network")
+
+    fun fetchData() {
+        log.d("Starting API request")
+        log.i("Request completed successfully")
+    }
+}
+```
+
+### Extension Functions
+
+Use extension functions for the cleanest syntax:
+
+```kotlin
+class MyViewModel {
+    fun doWork() {
+        loggerD("Starting work")  // Uses "MyViewModel" as tag
+        loggerI("Work in progress")
+
+        try {
+            riskyOperation()
+        } catch (e: Exception) {
+            loggerE("Work failed", e)  // Automatically uses class name
+        }
+    }
+}
+```
+
+Available extensions: `loggerV()`, `loggerD()`, `loggerI()`, `loggerW()`, `loggerE()`,
+`loggerFatal()`
+
+## Structured Logging Quick Start
 
 ### 1. Initialize the Logger
 
@@ -266,6 +362,34 @@ assertEquals(1, testSink.events.size)
 assertEquals(LogLevel.INFO, testSink.events[0].level)
 assertEquals("Test message", testSink.events[0].message)
 ```
+
+## Simple vs Structured Logging
+
+| Feature         | Simple Log API  | Structured Logger API         |
+|-----------------|-----------------|-------------------------------|
+| Setup Required  | ❌ No            | ✅ Yes (LoggerFactory.install) |
+| Attributes      | ❌ No            | ✅ Yes                         |
+| Context         | ❌ No            | ✅ Yes                         |
+| Multiple Sinks  | ❌ No            | ✅ Yes                         |
+| Level Overrides | ❌ No            | ✅ Yes                         |
+| Lazy Evaluation | ❌ No            | ✅ Yes                         |
+| Testing Support | ❌ Limited       | ✅ TestSink                    |
+| Use Case        | Quick debugging | Production logging            |
+
+**Use Simple Log API when:**
+
+- Quick debugging during development
+- Simple console output
+- No need for structured data
+- Prototyping
+
+**Use Structured Logger API when:**
+
+- Production applications
+- Need structured attributes
+- Want context propagation
+- Multiple output destinations
+- Unit testing logs
 
 ## Usage Examples
 
