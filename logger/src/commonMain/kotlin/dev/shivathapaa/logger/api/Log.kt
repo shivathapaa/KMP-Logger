@@ -83,6 +83,7 @@ object Log {
      */
     fun fatal(message: String, tag: String = defaultTag, throwable: Throwable? = null) {
         logger.wtf(message, tag, throwable)
+        throwable?.let { throw RuntimeException("FATAL: ${it.message}", it) }
     }
 
     /**
