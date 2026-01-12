@@ -2,12 +2,11 @@ package dev.shivathapaa.logger.formatters
 
 import dev.shivathapaa.logger.core.LogEvent
 
-internal object DefaultLogFormatter : LogEventFormatter {
+internal class DefaultLogFormatter(private val showEmoji: Boolean) : LogEventFormatter {
     override fun format(event: LogEvent): String = buildString {
-        append('[')
-        append(event.level.name)
-        append("] ")
-
+        val emoji = if (showEmoji) "${event.level.emoji} " else ""
+        append(emoji)
+        append("[${event.level.name}] ")
         append(event.loggerName)
 
         event.message?.takeIf { it.isNotBlank() }?.let {

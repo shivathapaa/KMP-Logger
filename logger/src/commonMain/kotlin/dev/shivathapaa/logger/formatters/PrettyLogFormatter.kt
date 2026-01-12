@@ -3,9 +3,10 @@ package dev.shivathapaa.logger.formatters
 import dev.shivathapaa.logger.core.LogEvent
 
 internal class PrettyLogFormatter(
-    private val includeTimestamp: Boolean = false,
-    private val includeThread: Boolean = false,
-    private val prettyPrint: Boolean = true,
+    private val includeTimestamp: Boolean,
+    private val includeThread: Boolean,
+    private val prettyPrint: Boolean,
+    private val showEmoji: Boolean,
     private val timeFormatter: (Long) -> String = { it.toString() }
 ) : LogEventFormatter {
 
@@ -17,6 +18,9 @@ internal class PrettyLogFormatter(
                 append(" ")
             }
         }
+
+        val emoji = if (showEmoji) "${event.level.emoji} " else ""
+        append(emoji)
 
         append("[")
         append(event.level.name)

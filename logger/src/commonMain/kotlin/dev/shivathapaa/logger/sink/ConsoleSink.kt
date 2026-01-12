@@ -4,7 +4,9 @@ import dev.shivathapaa.logger.core.LogEvent
 import dev.shivathapaa.logger.formatters.LogEventFormatter
 import dev.shivathapaa.logger.formatters.LogFormatters
 
-class ConsoleSink(private val logFormatter: LogEventFormatter = LogFormatters.default()) : LogSink {
+class ConsoleSink(
+    private val logFormatter: LogEventFormatter = LogFormatters.default(false)
+) : LogSink {
     override fun emit(event: LogEvent) {
         val output = logFormatter.format(event)
 

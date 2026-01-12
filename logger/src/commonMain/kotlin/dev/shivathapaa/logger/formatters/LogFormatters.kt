@@ -1,20 +1,22 @@
 package dev.shivathapaa.logger.formatters
 
 object LogFormatters {
-    fun default(): LogEventFormatter = DefaultLogFormatter
+    fun default(showEmoji: Boolean): LogEventFormatter = DefaultLogFormatter(showEmoji)
 
     fun pretty(
+        showEmoji: Boolean,
         includeTimestamp: Boolean = false,
         includeThread: Boolean = false,
-        prettyPrint: Boolean = true
+        prettyPrint: Boolean = true,
     ): LogEventFormatter =
         PrettyLogFormatter(
             includeTimestamp,
             includeThread,
-            prettyPrint
+            prettyPrint,
+            showEmoji
         )
 
-    fun compact(): LogEventFormatter = CompactLogFormatter
+    fun compact(showEmoji: Boolean): LogEventFormatter = CompactLogFormatter(showEmoji)
 
-    fun json(): LogEventFormatter = JsonLogFormatter
+    fun json(showEmoji: Boolean): LogEventFormatter = JsonLogFormatter(showEmoji)
 }

@@ -2,8 +2,10 @@ package dev.shivathapaa.logger.formatters
 
 import dev.shivathapaa.logger.core.LogEvent
 
-internal object JsonLogFormatter : LogEventFormatter {
+internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormatter {
     override fun format(event: LogEvent): String = buildString {
+        val emoji = if (showEmoji) "${event.level.emoji} " else ""
+        append(emoji)
         append('{')
         appendField("level", event.level.name)
         appendField("logger", event.loggerName)

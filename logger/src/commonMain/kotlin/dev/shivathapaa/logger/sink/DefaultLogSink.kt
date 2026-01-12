@@ -7,7 +7,7 @@ import dev.shivathapaa.logger.formatters.LogEventFormatter
 import dev.shivathapaa.logger.formatters.LogFormatters
 
 class DefaultLogSink(
-    private val logFormatter: LogEventFormatter = LogFormatters.pretty()
+    private val logFormatter: LogEventFormatter = LogFormatters.pretty(false)
 ) : LogSink {
     private val logger = PlatformLogger()
 
