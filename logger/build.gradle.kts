@@ -12,6 +12,9 @@ group = "io.github.shivathapaa"
 version = "1.1.0"
 
 kotlin {
+    jvm()
+    js { browser() }
+    wasmJs { browser() }
     androidLibrary {
         namespace = group.toString()
         compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -30,6 +33,10 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+    macosX64()
+    macosArm64()
+    linuxX64()
+    mingwX64()
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         compilations["main"].compileTaskProvider.configure {

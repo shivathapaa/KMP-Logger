@@ -31,8 +31,8 @@ import dev.shivathapaa.logger.core.PlatformLogger
  * ```
  */
 object Log {
-    private var defaultTag: String = "App"
-    private val logger = PlatformLogger()
+    private var defaultTag: String = KMP_LOGGER_DEFAULT_TAG
+    private var logger = PlatformLogger()
 
     /**
      * Set the default tag for all Log calls without explicit tag.
@@ -40,6 +40,7 @@ object Log {
      */
     fun setDefaultTag(tag: String) {
         defaultTag = tag
+        logger = PlatformLogger(defaultTag)
     }
 
     /**
@@ -101,7 +102,7 @@ object Log {
      * ```
      */
     inline fun <reified T> withClassTag(): LogWrapper {
-        return LogWrapper(T::class.simpleName ?: "App")
+        return LogWrapper(T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
     }
 
     /**
@@ -189,25 +190,27 @@ class LogWrapper(private val tag: String) {
  * ```
  */
 inline fun <reified T> T.loggerV(message: String) {
-    Log.v(message, T::class.simpleName ?: "App")
+    Log.v(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
 inline fun <reified T> T.loggerD(message: String) {
-    Log.d(message, T::class.simpleName ?: "App")
+    Log.d(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
 inline fun <reified T> T.loggerI(message: String) {
-    Log.i(message, T::class.simpleName ?: "App")
+    Log.i(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
 inline fun <reified T> T.loggerW(message: String, throwable: Throwable? = null) {
-    Log.w(message, T::class.simpleName ?: "App", throwable)
+    Log.w(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
 
 inline fun <reified T> T.loggerE(message: String, throwable: Throwable? = null) {
-    Log.e(message, T::class.simpleName ?: "App", throwable)
+    Log.e(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
 
 inline fun <reified T> T.loggerFatal(message: String, throwable: Throwable? = null) {
-    Log.fatal(message, T::class.simpleName ?: "App", throwable)
+    Log.fatal(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
+
+const val KMP_LOGGER_DEFAULT_TAG = "App"
