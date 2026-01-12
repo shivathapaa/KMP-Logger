@@ -25,7 +25,6 @@ import dev.shivathapaa.logger.api.loggerV
 import dev.shivathapaa.logger.api.loggerW
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -95,8 +94,28 @@ fun SimpleLogSample(
     }
 }
 
+fun allLogSamples() {
+    allLevels()
+    customTags()
+    exceptions()
+    defaultTag()
+    classBased()
+    moduleBased()
+    multipleWrappers()
+    extensionBasics()
+    extensionInClass()
+    extensionErrors()
+    apiRequest()
+    viewModel()
+    repository()
+    service()
+    emptyMessage()
+    longMessages()
+    specialChars()
+    nullThrowables()
+}
 
-fun allLevels() {
+internal fun allLevels() {
     printHeader("1. ALL LOG LEVELS - Simple API")
 
     Log.v("VERBOSE: Most detailed logging")
@@ -109,7 +128,7 @@ fun allLevels() {
     println("* All log levels demonstrated (except FATAL)")
 }
 
-fun customTags() {
+internal fun customTags() {
     printHeader("2. WITH CUSTOM TAGS")
 
     Log.d("Default tag message")
@@ -121,7 +140,7 @@ fun customTags() {
     println("* Each log can have its own tag")
 }
 
-fun exceptions() {
+internal fun exceptions() {
     printHeader("3. WITH EXCEPTIONS")
 
     // Simple exception
@@ -148,7 +167,7 @@ fun exceptions() {
     println("* Exceptions logged with stack traces")
 }
 
-fun defaultTag() {
+internal fun defaultTag() {
     printHeader("4. DEFAULT TAG BEHAVIOR")
 
     println("Initial default tag: SimpleLogDemo")
@@ -167,7 +186,7 @@ fun defaultTag() {
     println("\n* Default tag can be changed at runtime")
 }
 
-fun classBased() {
+internal fun classBased() {
     printHeader("5. CLASS-BASED LOGGER")
 
     val viewModel = SampleViewModel()
@@ -178,7 +197,7 @@ fun classBased() {
     println("* Class name automatically used as tag")
 }
 
-class SampleViewModel {
+internal class SampleViewModel {
     private val log = Log.withClassTag<SampleViewModel>()
 
     fun initialize() {
@@ -199,7 +218,7 @@ class SampleViewModel {
     }
 }
 
-fun moduleBased() {
+internal fun moduleBased() {
     printHeader("6. MODULE-BASED LOGGER")
 
     NetworkModule.connect()
@@ -209,7 +228,7 @@ fun moduleBased() {
     println("* Each module has its own logger with custom tag")
 }
 
-object NetworkModule {
+internal object NetworkModule {
     private val log = Log.withTag("Network")
 
     fun connect() {
@@ -218,7 +237,7 @@ object NetworkModule {
     }
 }
 
-object DatabaseModule {
+internal object DatabaseModule {
     private val log = Log.withTag("Database")
 
     fun query() {
@@ -227,7 +246,7 @@ object DatabaseModule {
     }
 }
 
-object CacheModule {
+internal object CacheModule {
     private val log = Log.withTag("Cache")
 
     fun store() {
@@ -236,7 +255,7 @@ object CacheModule {
     }
 }
 
-fun multipleWrappers() {
+internal fun multipleWrappers() {
     printHeader("7. MULTIPLE WRAPPERS")
 
     val authLog = Log.withTag("Auth")
@@ -257,7 +276,7 @@ fun multipleWrappers() {
     println("  Analytics tag: ${analyticsLog.getTag()}")
 }
 
-fun extensionBasics() {
+internal fun extensionBasics() {
     printHeader("8. EXTENSION BASICS")
 
     val demo = ExtensionDemo()
@@ -266,7 +285,7 @@ fun extensionBasics() {
     println("* Extensions use class name as tag automatically")
 }
 
-class ExtensionDemo {
+internal class ExtensionDemo {
     fun testExtensions() {
         loggerV("Verbose log")
         loggerD("Debug log")
@@ -277,7 +296,7 @@ class ExtensionDemo {
     }
 }
 
-fun extensionInClass() {
+internal fun extensionInClass() {
     printHeader("9. EXTENSION IN CLASS")
 
     val service = UserService()
@@ -286,7 +305,7 @@ fun extensionInClass() {
     println("* Extensions work seamlessly in class methods")
 }
 
-class UserService {
+internal class UserService {
     fun registerUser(email: String) {
         loggerD("Starting user registration")
         loggerI("Validating email: $email")
@@ -300,7 +319,7 @@ class UserService {
     }
 }
 
-fun extensionErrors() {
+internal fun extensionErrors() {
     printHeader("10. EXTENSION WITH ERRORS")
 
     val processor = DataProcessor()
@@ -309,7 +328,7 @@ fun extensionErrors() {
     println("* Extensions handle errors with throwables")
 }
 
-class DataProcessor {
+internal class DataProcessor {
     fun process() {
         loggerD("Processing started")
 
@@ -327,11 +346,11 @@ class DataProcessor {
     }
 }
 
-fun apiRequest() {
+internal fun apiRequest() {
     printHeader("11. API REQUEST LOGGING")
 
     val api = ApiClient()
-    CoroutineScope(Dispatchers.IO).launch {
+    CoroutineScope(Dispatchers.Default).launch {// Just for example (because of Js) it's using Default - Use IO
         api.get("/users/123")
         api.post("/users", "{'name': 'John'}")
 
@@ -339,7 +358,7 @@ fun apiRequest() {
     }
 }
 
-class ApiClient {
+internal class ApiClient {
     private val log = Log.withTag("API")
 
     suspend fun get(endpoint: String) {
@@ -365,7 +384,7 @@ class ApiClient {
     }
 }
 
-fun viewModel() {
+internal fun viewModel() {
     printHeader("12. VIEWMODEL LOGGING")
 
     val viewModel = ProfileViewModel()
@@ -377,7 +396,7 @@ fun viewModel() {
     }
 }
 
-class ProfileViewModel {
+internal class ProfileViewModel {
     suspend fun loadProfile() {
         loggerD("Loading profile...")
         delay(50)
@@ -396,7 +415,7 @@ class ProfileViewModel {
     }
 }
 
-fun repository() {
+internal fun repository() {
     printHeader("13. REPOSITORY LOGGING")
 
     CoroutineScope(Dispatchers.Default).launch {
@@ -408,7 +427,7 @@ fun repository() {
     }
 }
 
-class UserRepository {
+internal class UserRepository {
     private val log = Log.withTag("UserRepo")
 
     suspend fun getUser(id: Int) {
@@ -429,7 +448,7 @@ class UserRepository {
     }
 }
 
-fun service() {
+internal fun service() {
     printHeader("14. SERVICE LOGGING")
 
     val service = NotificationService()
@@ -438,7 +457,7 @@ fun service() {
     println("* Service logging pattern")
 }
 
-class NotificationService {
+internal class NotificationService {
     fun sendNotification(message: String) {
         CoroutineScope(Dispatchers.Default).launch {
             loggerD("Preparing notification: $message")
@@ -451,7 +470,7 @@ class NotificationService {
     }
 }
 
-fun emptyMessage() {
+internal fun emptyMessage() {
     printHeader("15. EMPTY MESSAGES")
 
     Log.d("")
@@ -465,7 +484,7 @@ fun emptyMessage() {
     println("* Empty messages are allowed")
 }
 
-fun longMessages() {
+internal fun longMessages() {
     printHeader("16. LONG MESSAGES")
 
     val longMessage = "This is a very long message. ".repeat(20)
@@ -480,7 +499,7 @@ fun longMessages() {
     println("  Message length: ${longMessage.length} chars")
 }
 
-fun specialChars() {
+internal fun specialChars() {
     printHeader("17. SPECIAL CHARACTERS")
 
     Log.d("Message with émojis: 🎉 🚀 ✨")
@@ -494,7 +513,7 @@ fun specialChars() {
     println("* Special characters handled")
 }
 
-fun nullThrowables() {
+internal fun nullThrowables() {
     printHeader("18. NULL THROWABLES")
 
     Log.w("Warning without exception", throwable = null)
@@ -507,7 +526,7 @@ fun nullThrowables() {
     println("* Null throwables handled gracefully")
 }
 
-fun fatal() {
+internal fun fatal() {
     CoroutineScope(Dispatchers.Default).launch {
         printHeader("FATAL LOG - WILL CRASH")
 

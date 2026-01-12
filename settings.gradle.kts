@@ -17,4 +17,4 @@ dependencyResolutionManagement {
 
 include(":logger")
 include(":sample:composeApp")
-
+include(":sample:terminalApp")
