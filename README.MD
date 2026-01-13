@@ -1,7 +1,8 @@
 # KMP Logger
 
 A lightweight, structured logging library for Kotlin Multiplatform projects with support for
-Android, and iOS.
+different platforms i.e.,
+Android, iOS, js, wasmJs, jvm, macosX64, macosArm64, linuxX64, and mingwX64.
 
 ## Features
 
@@ -19,13 +20,30 @@ Android, and iOS.
 
 ```kotlin
 // build.gradle.kts (commonMain)
-dependencies {
-    implementation("io.github.shivathapaa:logger:1.0.0")
+commonMain.dependencies {
+    implementation("io.github.shivathapaa:logger:1.2.0")
 }
 ```
 
-Check other artifacts
+For only Android app,
+
+```kotlin
+// build.gradle.kts (androidMain)
+androidMain.dependencies {
+    implementation("io.github.shivathapaa:logger-android:1.2.0")
+}
+```
+
+For different platforms, check artifacts
 at [Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa)
+
+Checkout [Advance Sinks](#advanced-topics).
+
+- [Custom Sinks](#custom-sinks)
+- [Remote Logging Sink](#remote-logging-sink)
+- [Firebase Logging Sink](#firebase-logging-sink)
+- [Facebook Logging Sink](#facebook-logging-sink)
+- [Filtering Sensitive Data](#filtering-sensitive-data)
 
 ## Simple Log API
 
@@ -127,7 +145,7 @@ Available extensions: `loggerV()`, `loggerD()`, `loggerI()`, `loggerW()`, `logge
 fun main() {
     val config = LoggerConfig.Builder()
         .minLevel(LogLevel.DEBUG)
-        .addSink(DefaultLogSink())  // Uses Logcat/NSLog/println
+        .addSink(DefaultLogSink())  // Choose predefined sink or create custom
         .build()
 
     LoggerFactory.install(config)
@@ -313,6 +331,17 @@ LogContextHolder.withContext(traceContext) {
 }
 ```
 
+## Log Formatters
+
+You can format log as per your use case. Common formatters are provided:
+
+```kotlin 
+DefaultLogFormatter
+CompactLogFormatter
+PrettyLogFormatter
+JsonLogFormatter
+```
+
 ## Available Sinks
 
 ### DefaultLogSink
@@ -338,6 +367,14 @@ Output format:
 
 ```
 [INFO] MyApp - Message | attrs={key=value} | ctx={context=data}
+```
+
+### RemoteSink
+
+Basic sink for remote logging:
+
+```kotlin
+.addSink(RemoteSink())
 ```
 
 ### TestSink
@@ -533,20 +570,117 @@ class FileSink(private val filename: String) : LogSink {
 }
 ```
 
-### Remote Logging Sink
+### Firebase Logging Sink
 
 ```kotlin
-class RemoteLogSink(private val apiUrl: String) : LogSink {
-    private val client = HttpClient()
+
+actual class FirebaseLogSink(
+    private val minLevel: LogLevel = LogLevel.WARN,
+    private val formatter: LogEventFormatter = LogFormatters.json(false),
+    private val crashlytics: FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
+) : LogSink {
 
     override fun emit(event: LogEvent) {
-        CoroutineScope(Dispatchers.IO).launch {
-            client.post(apiUrl) {
-                setBody(serializeLogEvent(event))
+        if (event.level < minLevel) return
+
+        attachContext(event)
+
+        val message = formatter.format(event)
+
+        when (event.level) {
+            LogLevel.ERROR,
+            LogLevel.FATAL -> {
+                val throwable = event.throwable ?: LoggedException(message)
+                crashlytics.recordException(throwable)
+            }
+
+            else -> {
+                crashlytics.log(message)
             }
         }
     }
+
+    private fun attachContext(event: LogEvent) {
+        event.context.values.forEach { (key, value) ->
+            crashlytics.setCustomKey(
+                key.take(40),
+                value?.toString()?.take(100) ?: "null"
+            )
+        }
+    }
+
+    private class LoggedException(message: String) : RuntimeException(message)
 }
+// Similar actual for other platforms if available 
+```
+
+### Facebook Logging Sink
+
+```kotlin
+actual class FacebookLogSink(
+    private val minLevel: LogLevel = LogLevel.INFO,
+    private val appEventsLogger: AppEventsLogger
+) : LogSink {
+
+    override fun emit(event: LogEvent) {
+        if (event.level < minLevel) return
+
+        val eventName = mapEventName(event)
+        val params = buildParams(event)
+
+        appEventsLogger.logEvent(eventName, params)
+    }
+
+    private fun mapEventName(event: LogEvent): String {
+        return when (event.level) {
+            LogLevel.INFO -> "app_log_info"
+            LogLevel.WARN -> "app_log_warn"
+            LogLevel.ERROR -> "app_log_error"
+            LogLevel.FATAL -> "app_log_fatal"
+            else -> "app_log"
+        }
+    }
+
+    private fun buildParams(event: LogEvent): Bundle {
+        return Bundle().apply {
+            putString("logger", event.loggerName)
+            putString("level", event.level.name)
+            putString("thread", event.thread)
+
+            event.message?.let {
+                putString("message", it.take(100))
+            }
+
+            // Attributes
+            event.attributes.forEach { (k, v) ->
+                putString(
+                    "attr_${k.safeKey()}",
+                    v?.toString()?.take(100)
+                )
+            }
+
+            // Context
+            event.context.values.forEach { (k, v) ->
+                putString(
+                    "ctx_${k.safeKey()}",
+                    v?.toString()?.take(100)
+                )
+            }
+
+            // Error metadata (not stacktrace!)
+            event.throwable?.let {
+                putString("exception", it::class.simpleName)
+                putString("exception_message", it.message?.take(100))
+            }
+        }
+    }
+
+    private fun String.safeKey(): String =
+        lowercase()
+            .replace("[^a-z0-9_]".toRegex(), "_")
+            .take(40)
+}
+// Similar actual for other platforms if available 
 ```
 
 ### Filtering Sensitive Data
@@ -741,6 +875,13 @@ You can contribute to this project in several ways:
   the [CONTRIBUTING.md](https://github.com/shivathapaa/KMP-Logger/blob/main/CONTRIBUTING.md) guide
   before getting started.
 - Show your support by giving this repository a Star⭐. It means a lot! 😊
+
+## Sample Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e9013bac-2e26-43bf-960c-cdd4eff2f1e7" alt="" width="40%">&nbsp;
+  <img src="https://github.com/user-attachments/assets/c37203c3-2360-4575-bce4-aa19945e6ea0" alt="" width="40%">&nbsp;
+</p>
 
 ---
 
