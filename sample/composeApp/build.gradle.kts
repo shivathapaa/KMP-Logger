@@ -1,3 +1,5 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.compose.compiler)
@@ -33,13 +35,17 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.foundation)
             implementation(libs.material3)
-            implementation(project(":logger"))
+//            implementation(project(":logger"))
+            implementation("io.github.shivathapaa:logger:1.2.0")
         }
 
         androidMain.dependencies {
             implementation(libs.androidx.activityCompose)
         }
 
+        jvmMain.dependencies {
+            implementation(compose.desktop.currentOs)
+        }
     }
 }
 
@@ -57,3 +63,14 @@ android {
     }
 }
 
+compose.desktop {
+    application {
+        mainClass = "sample.app.MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "sample.app"
+            packageVersion = "1.0.0"
+        }
+    }
+}
