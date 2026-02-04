@@ -1,0 +1,61 @@
+# General
+*.iml
+.DS_Store
+*.log
+*.hprof
+
+# Build Artifacts
+.gradle/
+build/
+**/build/
+!src/**/build/
+*.apk
+*.aar
+!geokrishi_input.aar
+!eSewaPaymentSdk-release.aar
+*.ap_
+*.aab
+output.json
+
+# Android Specific
+.externalNativeBuild/
+.cxx/
+captures/
+*.keystore
+*.jks
+
+# iOS Specific
+**/xcuserdata/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+Pods/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+.kotlin/
+modules.xml
+workspace.xml
+
+# Kotlin Multiplatform
+.kmp/
+*.kexe
+*.klib
+
+# Local Configuration
+local.properties
+
+# FrameWork
+geokrishiIdc.xcframework
+
+node_modules/

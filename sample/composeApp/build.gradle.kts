@@ -5,12 +5,9 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.android.application)
 }
 
 kotlin {
-    androidTarget()
-
     jvm()
 
     js {
@@ -36,35 +33,16 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.ui)
-            implementation(compose.foundation)
+            implementation(libs.runtime)
+            implementation(libs.ui)
+            implementation(libs.foundation)
             implementation(libs.material3)
-//            implementation(project(":logger"))
-            implementation("io.github.shivathapaa:logger:1.2.0")
+            implementation(project(":logger"))
+//            implementation(libs.logger)
         }
-
-        androidMain.dependencies {
-            implementation(libs.androidx.activityCompose)
-        }
-
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
         }
-    }
-}
-
-android {
-    namespace = "sample.app"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 24
-        targetSdk = 36
-
-        applicationId = "sample.app.androidApp"
-        versionCode = 1
-        versionName = "1.0.0"
     }
 }
 

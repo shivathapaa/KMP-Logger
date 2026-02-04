@@ -16,5 +16,6 @@ dependencyResolutionManagement {
 }
 
 include(":logger")
+include(":sample:androidApp")
 include(":sample:composeApp")
 include(":sample:terminalApp")
