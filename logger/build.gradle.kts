@@ -1,5 +1,6 @@
-import com.android.build.api.dsl.androidLibrary
 import com.vanniktech.maven.publish.KotlinMultiplatform
+import com.vanniktech.maven.publish.SourcesJar
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -9,26 +10,43 @@ plugins {
 }
 
 group = "io.github.shivathapaa"
-version = "1.2.0"
+version = "1.2.1"
 
 kotlin {
-    jvm()
-    js { browser() }
-    wasmJs { browser() }
-    androidLibrary {
-        namespace = group.toString()
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
-        minSdk = libs.versions.android.minSdk.get().toInt()
+    sourceSets {
+        androidLibrary {
+            namespace = "io.github.shivathapaa.logger"
+            compileSdk = libs.versions.android.compileSdk.get().toInt()
+            minSdk = libs.versions.android.minSdk.get().toInt()
 
-        withJava() // enable java compilation support
+            withJava() // enable java compilation support
 
-        compilations.configureEach {
-            compilerOptions.configure {
-                jvmTarget.set(
-                    JvmTarget.JVM_11
-                )
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_11)
+            }
+
+            packaging {
+                resources {
+                    excludes += "/META-INF/{AL2.0,LGPL2.1}"
+                }
             }
         }
+    }
+    jvm()
+    js {
+        browser()
+        nodejs()
+        useEsModules()
+        binaries.executable()
+        binaries.library()
+    }
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        nodejs()
+        binaries.executable()
+        binaries.library()
     }
     iosX64()
     iosArm64()
@@ -49,7 +67,7 @@ kotlin {
 
 mavenPublishing {
     coordinates(group.toString(), "logger", version.toString())
-    configure(platform = KotlinMultiplatform(sourcesJar = true))
+    configure(KotlinMultiplatform(sourcesJar = SourcesJar.Sources()))
 
     pom {
         name = "KMP Logger"
