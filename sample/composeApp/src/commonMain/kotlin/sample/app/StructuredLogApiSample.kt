@@ -31,6 +31,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * A sample Composable screen demonstrating various features of the KMP Logger API.
+ * This includes basic logging, structured logging, context propagation, and configuration.
+ */
 @Composable
 fun StructuredLogApiSample(
     modifier: Modifier = Modifier
@@ -99,6 +103,9 @@ fun StructuredLogApiSample(
 }
 
 
+/**
+ * A reusable button component for triggering demo actions.
+ */
 @Composable
 fun DemoButton(text: String, onClick: () -> Unit) {
     Button(
@@ -109,6 +116,9 @@ fun DemoButton(text: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Initializes the logger with a default configuration.
+ */
 fun initLogger() {
     println("*\n${"=".repeat(70)}")
     println("*INITIALIZING LOGGER")
@@ -125,6 +135,9 @@ fun initLogger() {
     println("** Override: FilteredDemo -> WARN")
 }
 
+/**
+ * Demonstrates all available log levels except FATAL.
+ */
 fun allLogLevels() {
     printHeader("1. ALL LOG LEVELS")
     val logger = LoggerFactory.get("LevelsDemo")
@@ -138,6 +151,9 @@ fun allLogLevels() {
     println("** All log levels demonstrated (except FATAL)")
 }
 
+/**
+ * Demonstrates that log messages are lazily evaluated only if the log level is enabled.
+ */
 fun lazyEvaluation() {
     printHeader("2. LAZY EVALUATION")
     val logger = LoggerFactory.get("LazyDemo")
@@ -169,6 +185,9 @@ fun lazyEvaluation() {
     println("** Lambda only evaluated when log level is enabled")
 }
 
+/**
+ * Demonstrates logging with custom attributes.
+ */
 fun logWithAttributes() {
     printHeader("3. LOG WITH ATTRIBUTES")
     val logger = LoggerFactory.get("AttributesDemo")
@@ -203,6 +222,9 @@ fun logWithAttributes() {
     println("** Attributes are key-value pairs attached to log events")
 }
 
+/**
+ * Demonstrates logging exceptions along with messages and attributes.
+ */
 fun logWithExceptions() {
     printHeader("4. LOG WITH EXCEPTIONS")
     val logger = LoggerFactory.get("ExceptionDemo")
@@ -238,6 +260,9 @@ fun logWithExceptions() {
     println("** Exceptions include full stack trace")
 }
 
+/**
+ * Demonstrates using [LogContext] to attach metadata to all logs within a scope.
+ */
 fun logContext() {
     printHeader("5. LOG CONTEXT")
     val logger = LoggerFactory.get("ContextDemo")
@@ -267,6 +292,9 @@ fun logContext() {
     println("** Context adds metadata to all logs within scope")
 }
 
+/**
+ * Demonstrates nested [LogContext] merging.
+ */
 fun nestedContext() {
     printHeader("6. NESTED CONTEXT")
     val logger = LoggerFactory.get("NestedDemo")
@@ -287,6 +315,9 @@ fun nestedContext() {
     println("** Nested contexts are merged")
 }
 
+/**
+ * Demonstrates logging from coroutines.
+ */
 fun asyncLogging() {
     printHeader("7. ASYNC LOGGING")
 
@@ -307,6 +338,9 @@ fun asyncLogging() {
     println("** Logs can be called from coroutines")
 }
 
+/**
+ * Demonstrates structured logging for machine-readable output.
+ */
 fun structuredLogging() {
     printHeader("8. STRUCTURED LOGGING")
     val logger = LoggerFactory.get("StructuredDemo")
@@ -343,6 +377,9 @@ fun structuredLogging() {
     println("** Structured logging for machine-readable logs")
 }
 
+/**
+ * Demonstrates per-logger log level overrides.
+ */
 fun loggerOverrides() {
     printHeader("9. LOGGER OVERRIDES")
 
@@ -370,6 +407,9 @@ fun loggerOverrides() {
     println("** Overrides allow per-logger level control")
 }
 
+/**
+ * Demonstrates configuring multiple log sinks.
+ */
 fun multipleSinks() {
     printHeader("10. MULTIPLE SINKS")
 
@@ -397,6 +437,9 @@ fun multipleSinks() {
     initLogger()
 }
 
+/**
+ * Demonstrates using [TestSink] to verify logs in unit tests.
+ */
 fun testSinkVerification() {
     printHeader("11. TEST SINK VERIFICATION")
 
@@ -430,6 +473,9 @@ fun testSinkVerification() {
     initLogger()
 }
 
+/**
+ * Demonstrates filtering logs based on minimum log level.
+ */
 fun minLevelFiltering() {
     printHeader("12. MIN LEVEL FILTERING")
 
@@ -479,6 +525,9 @@ fun minLevelFiltering() {
     initLogger()
 }
 
+/**
+ * Demonstrates that empty messages are supported.
+ */
 fun emptyMessages() {
     printHeader("13. EMPTY MESSAGES")
     val logger = LoggerFactory.get("EmptyDemo")
@@ -489,6 +538,9 @@ fun emptyMessages() {
     println("** Empty messages are allowed")
 }
 
+/**
+ * Demonstrates that null attribute values are supported.
+ */
 fun nullAttributes() {
     printHeader("14. NULL ATTRIBUTES")
     val logger = LoggerFactory.get("NullDemo")
@@ -504,6 +556,9 @@ fun nullAttributes() {
     println("** Null attribute values are supported")
 }
 
+/**
+ * Demonstrates logging complex objects as attributes.
+ */
 fun complexObjects() {
     printHeader("15. COMPLEX OBJECTS")
     val logger = LoggerFactory.get("ComplexDemo")
@@ -526,6 +581,9 @@ fun complexObjects() {
     println("** Any objects can be attributes (toString() is used)")
 }
 
+/**
+ * Demonstrates disabling all logging using [LogLevel.OFF].
+ */
 fun offLevel() {
     printHeader("16. OFF LEVEL")
 
@@ -551,6 +609,9 @@ fun offLevel() {
     initLogger()
 }
 
+/**
+ * Demonstrates logging a fatal error, which typically terminates the application.
+ */
 fun fatalDemo() {
     CoroutineScope(Dispatchers.Default).launch {
         printHeader("FATAL LOG - WILL CRASH APP")
@@ -568,6 +629,9 @@ fun fatalDemo() {
     }
 }
 
+/**
+ * Utility function to print a header for demo sections.
+ */
 fun printHeader(title: String) {
     println("*\n${"=".repeat(70)}")
     println(title)
