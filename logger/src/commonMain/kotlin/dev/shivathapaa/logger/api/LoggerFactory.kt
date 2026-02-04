@@ -7,6 +7,12 @@ import dev.shivathapaa.logger.core.LoggerConfig
 import dev.shivathapaa.logger.sink.DefaultLogSink
 import kotlin.concurrent.Volatile
 
+/**
+ * The main entry point for obtaining [Logger] instances.
+ *
+ * It must be configured with a [LoggerConfig] before use, typically during application initialization.
+ * If not explicitly installed, it initializes with a default configuration (INFO level, DefaultLogSink).
+ */
 object LoggerFactory {
     @Volatile
     private var pipeline: LogPipeline? = null
@@ -15,6 +21,11 @@ object LoggerFactory {
         installDefault()
     }
 
+    /**
+     * Installs the given configuration. This sets up the internal pipeline and sinks.
+     *
+     * @param config The configuration to use.
+     */
     fun install(config: LoggerConfig) {
         pipeline = LogPipeline(
             policy = LogPolicy(
@@ -25,6 +36,12 @@ object LoggerFactory {
         )
     }
 
+    /**
+     * Returns a [Logger] instance with the specified tag.
+     *
+     * @param tag The tag (name) for the logger.
+     * @return A [Logger] instance.
+     */
     fun get(tag: String): Logger {
         val pipe = pipeline ?: run {
             // Auto-initialize with defaults if not installed

@@ -6,6 +6,14 @@ import dev.shivathapaa.logger.core.PlatformLogger
 import dev.shivathapaa.logger.formatters.LogEventFormatter
 import dev.shivathapaa.logger.formatters.LogFormatters
 
+/**
+ * The default [LogSink] implementation that delegates to a [PlatformLogger].
+ *
+ * This sink automatically uses the appropriate platform-specific logging mechanism
+ * (e.g., Logcat on Android, NSLog on iOS, standard output on JVM).
+ *
+ * @property logFormatter The formatter used to convert log events into strings.
+ */
 class DefaultLogSink(
     private val logFormatter: LogEventFormatter = LogFormatters.pretty(false)
 ) : LogSink {

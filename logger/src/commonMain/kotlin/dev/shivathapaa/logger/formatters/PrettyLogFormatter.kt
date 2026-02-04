@@ -2,6 +2,16 @@ package dev.shivathapaa.logger.formatters
 
 import dev.shivathapaa.logger.core.LogEvent
 
+/**
+ * A formatter that provides a detailed and highly readable representation of [LogEvent]s.
+ * It supports optional timestamps, thread names, and pretty-printed maps for attributes and context.
+ *
+ * @property includeTimestamp Whether to include the event timestamp.
+ * @property includeThread Whether to include the thread name.
+ * @property prettyPrint Whether to use multi-line formatting for attributes and context maps.
+ * @property showEmoji Whether to include log level emojis.
+ * @property timeFormatter A function to convert a timestamp (ms) to a formatted string.
+ */
 internal class PrettyLogFormatter(
     private val includeTimestamp: Boolean,
     private val includeThread: Boolean,

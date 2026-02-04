@@ -2,6 +2,12 @@ package dev.shivathapaa.logger.formatters
 
 import dev.shivathapaa.logger.core.LogEvent
 
+/**
+ * A formatter that represents each [LogEvent] as a JSON string.
+ * This is particularly useful for machine-readable logging or cloud logging services.
+ *
+ * @property showEmoji Whether to prepend the log level emoji to the JSON string.
+ */
 internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormatter {
     override fun format(event: LogEvent): String = buildString {
         val emoji = if (showEmoji) "${event.level.emoji} " else ""

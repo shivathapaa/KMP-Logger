@@ -2,6 +2,12 @@ package dev.shivathapaa.logger.formatters
 
 import dev.shivathapaa.logger.core.LogEvent
 
+/**
+ * A compact formatter that produces single-line log messages (except for stack traces).
+ * Useful for console output where space is limited.
+ *
+ * @property showEmoji Whether to include the log level emoji in the output.
+ */
 internal class CompactLogFormatter(private val showEmoji: Boolean) : LogEventFormatter {
     override fun format(event: LogEvent): String = buildString {
         val emoji = if (showEmoji) "${event.level.emoji} " else ""
