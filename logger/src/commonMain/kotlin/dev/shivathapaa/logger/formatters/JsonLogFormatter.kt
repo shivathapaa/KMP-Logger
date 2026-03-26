@@ -3,26 +3,47 @@ package dev.shivathapaa.logger.formatters
 import dev.shivathapaa.logger.core.LogEvent
 
 /**
- * A formatter that represents each [LogEvent] as a JSON string.
- * This is particularly useful for machine-readable logging or cloud logging services.
+ * A [LogEventFormatter] that serializes each [LogEvent] as a single-line JSON object.
  *
- * @property showEmoji Whether to prepend the log level emoji to the JSON string.
+ * Produces standards-compliant JSON suitable for ingestion by log aggregation
+ * and observability platforms such as Elasticsearch, Datadog, Splunk, and Loki.
+ *
+ * Output fields:
+ * - `level` - the log level name (e.g. `"INFO"`)
+ * - `levelEmoji` - the level's emoji indicator, present only when [showEmoji] is `true`
+ * - `logger` - the logger name / tag
+ * - `timestamp` - epoch milliseconds, present only when [LogEvent.timestamp] is non-null
+ * - `message` - the log message, present only when non-null
+ * - `attributes` - key/value map of structured attributes, present only when non-empty
+ * - `context` - key/value map of the active [dev.shivathapaa.logger.core.LogContext], present only when non-empty
+ * - `error` - full stack trace string, present only when a throwable is attached
+ *
+ * Example output (`showEmoji = false`):
+ * ```json
+ * {"level":"ERROR","logger":"AuthService","message":"Login failed","attributes":{"userId":42}}
+ * ```
+ *
+ * Example output (`showEmoji = true`):
+ * ```json
+ * {"level":"ERROR","levelEmoji":"❤️","logger":"AuthService","message":"Login failed"}
+ * ```
+ *
+ * @property showEmoji Whether to include a `levelEmoji` field in the JSON output.
  */
 internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormatter {
     override fun format(event: LogEvent): String = buildString {
-        val emoji = if (showEmoji) "${event.level.emoji} " else ""
-        append(emoji)
         append('{')
         appendField("level", event.level.name)
+
+        if (showEmoji) {
+            appendField("levelEmoji", event.level.emoji)
+        }
+
         appendField("logger", event.loggerName)
 
-        event.timestamp?.let {
-            appendField("timestamp", it)
-        }
+        event.timestamp?.let { appendField("timestamp", it) }
 
-        event.message?.let {
-            appendField("message", it)
-        }
+        event.message?.let { appendField("message", it) }
 
         if (event.attributes.isNotEmpty()) {
             appendField("attributes", mapToJson(event.attributes), raw = true)
@@ -32,9 +53,7 @@ internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormat
             appendField("context", mapToJson(event.context.values), raw = true)
         }
 
-        event.throwable?.let {
-            appendField("error", it.stackTraceToString())
-        }
+        event.throwable?.let { appendField("error", it.stackTraceToString()) }
 
         append('}')
     }
@@ -53,36 +72,36 @@ internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormat
         }
     }
 
-    private fun mapToJson(map: Map<String, Any?>): String =
-        buildString {
-            append('{')
-            map.entries.forEachIndexed { index, (k, v) ->
-                if (index > 0) append(',')
-                append('"').append(k.escapeJson()).append("\":")
-                appendValue(v)
-            }
-            append('}')
+    private fun mapToJson(map: Map<String, Any?>): String = buildString {
+        append('{')
+        map.entries.forEachIndexed { index, (k, v) ->
+            if (index > 0) append(',')
+            append('"').append(k.escapeJson()).append("\":")
+            appendValue(v)
         }
+        append('}')
+    }
 
     private fun StringBuilder.appendValue(value: Any?) {
         when (value) {
             null -> append("null")
-            is Number, is Boolean -> append(value)
+            is Number,
+            is Boolean -> append(value)
+
             else -> append('"').append(value.toString().escapeJson()).append('"')
         }
     }
 }
 
-private fun String.escapeJson(): String =
-    buildString(length) {
-        for (c in this@escapeJson) {
-            when (c) {
-                '"' -> append("\\\"")
-                '\\' -> append("\\\\")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                else -> append(c)
-            }
+private fun String.escapeJson(): String = buildString(length) {
+    for (c in this@escapeJson) {
+        when (c) {
+            '"' -> append("\\\"")
+            '\\' -> append("\\\\")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> append(c)
         }
     }
+}
