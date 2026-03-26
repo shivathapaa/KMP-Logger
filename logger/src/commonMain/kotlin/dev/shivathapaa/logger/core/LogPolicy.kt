@@ -16,14 +16,14 @@ internal class LogPolicy(
      * Determines whether the given log event is allowed by this policy.
      *
      * @param event The log event to check.
-     * @return true if the event's log level meets or exceeds the effective minimum level for its logger name.
+     * @return `true` if the event's level meets or exceeds the effective minimum
+     *   level for its logger name.
      */
     fun allows(event: LogEvent): Boolean {
         if (minLevel == LogLevel.OFF) return false
 
-        val effectiveLevel =
-            overrides[event.loggerName] ?: minLevel
+        val effectiveLevel = overrides[event.loggerName] ?: minLevel
 
-        return event.level.priority >= effectiveLevel.priority
+        return event.level >= effectiveLevel
     }
 }
