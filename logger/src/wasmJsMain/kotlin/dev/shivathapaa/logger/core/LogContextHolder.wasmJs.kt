@@ -1,19 +1,17 @@
 package dev.shivathapaa.logger.core
 
 actual object LogContextHolder {
-    private var currentContext: LogContext = LogContext()
+    private var current: LogContext = LogContext()
 
-    actual fun current(): LogContext = currentContext
+    actual fun current(): LogContext = current
 
-    actual fun withContext(ctx: LogContext, block: () -> Unit) {
-        val previous = current()
-        val merged = previous.merge(ctx)
-
-        currentContext = merged
+    actual fun <T> withContext(ctx: LogContext, block: () -> T): T {
+        val previous = current
+        current = previous.merge(ctx)
         try {
-            block()
+            return block()
         } finally {
-            currentContext = previous
+            current = previous
         }
     }
 }

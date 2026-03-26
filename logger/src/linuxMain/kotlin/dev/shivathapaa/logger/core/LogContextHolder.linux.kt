@@ -1,18 +1,17 @@
 package dev.shivathapaa.logger.core
 
 actual object LogContextHolder {
-    private val stack = mutableListOf<LogContext>()
+    private var current: LogContext = LogContext()
 
-    actual fun current(): LogContext =
-        stack.lastOrNull() ?: LogContext()
+    actual fun current(): LogContext = current
 
-    actual fun withContext(ctx: LogContext, block: () -> Unit) {
-        val merged = current().merge(ctx)
-        stack.add(merged)
+    actual fun <T> withContext(ctx: LogContext, block: () -> T): T {
+        val previous = current
+        current = previous.merge(ctx)
         try {
-            block()
+            return block()
         } finally {
-            stack.removeLast()
+            current = previous
         }
     }
 }
