@@ -1,24 +1,24 @@
 package dev.shivathapaa.logger.api
 
 /**
- * Defines the severity levels for log events.
+ * Defines the severity levels for log events, ordered from least to most severe.
  *
- * @property priority The numerical priority of the level, used for filtering.
- * @property emoji A visual indicator associated with the level.
+ * @property emoji A visual indicator associated with the level, used by formatters
+ *   that have emoji output enabled.
  */
-enum class LogLevel(val priority: Int, val emoji: String) {
-    /** Detailed information, typically only useful for development. */
-    VERBOSE(0, "💜"),
+enum class LogLevel(val emoji: String) {
+    /** Detailed information, typically only useful during development. */
+    VERBOSE("💜"),
     /** Debugging information. */
-    DEBUG(1, "💚"),
+    DEBUG("💚"),
     /** General operational information. */
-    INFO(2, "💙"),
+    INFO("💙"),
     /** Potential issues or important but non-critical occurrences. */
-    WARN(3, "💛"),
+    WARN("💛"),
     /** Errors and failures that should be investigated. */
-    ERROR(4, "❤️"),
+    ERROR("❤️"),
     /** Severe errors that will lead to application termination. */
-    FATAL(5, "💔"),
+    FATAL("💔"),
     /** Special level used to turn off all logging. */
-    OFF(6, "❌")
+    OFF("❌")
 }
