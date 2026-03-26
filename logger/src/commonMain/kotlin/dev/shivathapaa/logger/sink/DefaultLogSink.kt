@@ -7,10 +7,30 @@ import dev.shivathapaa.logger.formatters.LogEventFormatter
 import dev.shivathapaa.logger.formatters.LogFormatters
 
 /**
- * The default [LogSink] implementation that delegates to a [PlatformLogger].
+ * A [LogSink] that delegates to the platform's native logging mechanism.
  *
- * This sink automatically uses the appropriate platform-specific logging mechanism
- * (e.g., Logcat on Android, NSLog on iOS, standard output on JVM).
+ * On each platform this maps to the most appropriate native output:
+ * - **Android** - `android.util.Log` (visible in Logcat)
+ * - **iOS / macOS** - `NSLog` (visible in Xcode console)
+ * - **JVM** - `java.util.logging.Logger`
+ * - **JS / Wasm** - `console.log` / `console.error` etc.
+ * - **Linux / Windows** - `println` to standard output
+ *
+ * This is the recommended sink for most applications because it integrates
+ * with the platform's existing log infrastructure (filtering, log levels,
+ * crash reporting hooks, etc.).
+ *
+ * The output format is controlled by [logFormatter]. Defaults to
+ * [LogFormatters.pretty] without emoji.
+ *
+ * Example:
+ * ```kotlin
+ * LoggerFactory.install {
+ *     addSink(DefaultLogSink())
+ *     // or with a custom formatter
+ *     addSink(DefaultLogSink(LogFormatters.compact(showEmoji = true)))
+ * }
+ * ```
  *
  * @property logFormatter The formatter used to convert log events into strings.
  */
@@ -30,11 +50,7 @@ class DefaultLogSink(
             LogLevel.WARN -> logger.w(output, tag, event.throwable)
             LogLevel.ERROR -> logger.e(output, tag, event.throwable)
             LogLevel.FATAL -> logger.wtf(output, tag, event.throwable)
-            LogLevel.OFF -> {}
+            LogLevel.OFF -> Unit
         }
-    }
-
-    private fun formatMap(map: Map<String, Any?>): String {
-        return map.entries.joinToString(", ") { (k, v) -> "$k=$v" }
     }
 }
