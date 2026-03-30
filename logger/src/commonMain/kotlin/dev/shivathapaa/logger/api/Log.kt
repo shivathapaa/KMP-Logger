@@ -1,11 +1,15 @@
 package dev.shivathapaa.logger.api
 
-import dev.shivathapaa.logger.core.PlatformLogger
+import kotlin.concurrent.Volatile
 
 /**
- * Simple logging API for quick, non-structured logging.
+ * Simple logging API for quick, tag-based logging.
  *
- * For structured logging with attributes and context, use Logger from LoggerFactory instead.
+ * All calls are routed through [LoggerFactory], so sinks, formatters, and level
+ * filtering configured via [LoggerFactory.install] apply equally to both APIs.
+ *
+ * For structured logging with attributes and context, use [Logger] from
+ * [LoggerFactory] instead.
  *
  * Usage:
  * ```
@@ -31,64 +35,86 @@ import dev.shivathapaa.logger.core.PlatformLogger
  * ```
  */
 object Log {
+    @Volatile
     private var defaultTag: String = KMP_LOGGER_DEFAULT_TAG
-    private var logger = PlatformLogger()
 
     /**
-     * Set the default tag for all Log calls without explicit tag.
-     * Call this once during app initialization.
+     * Sets the default tag used for all [Log] calls that do not specify an explicit tag.
+     * Call this once during application initialization.
+     *
+     * @param tag The default tag to apply.
      */
     fun setDefaultTag(tag: String) {
         defaultTag = tag
-        logger = PlatformLogger(defaultTag)
     }
 
     /**
-     * Log a VERBOSE message. Most detailed, usually filtered in production.
+     * Logs a VERBOSE message.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
      */
     fun v(message: String, tag: String = defaultTag) {
-        logger.v(message, tag)
+        LoggerFactory.get(tag).verbose { message }
     }
 
     /**
-     * Log a DEBUG message. For debugging information.
+     * Logs a DEBUG message.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
      */
     fun d(message: String, tag: String = defaultTag) {
-        logger.d(message, tag)
+        LoggerFactory.get(tag).debug { message }
     }
 
     /**
-     * Log an INFO message. For general informational messages.
+     * Logs an INFO message.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
      */
     fun i(message: String, tag: String = defaultTag) {
-        logger.i(message, tag)
+        LoggerFactory.get(tag).info { message }
     }
 
     /**
-     * Log a WARN message. For potential issues.
+     * Logs a WARN message.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
+     * @param throwable An optional exception associated with the warning.
      */
     fun w(message: String, tag: String = defaultTag, throwable: Throwable? = null) {
-        logger.w(message, tag, throwable)
+        LoggerFactory.get(tag).warn(throwable) { message }
     }
 
     /**
-     * Log an ERROR message. For errors and failures.
+     * Logs an ERROR message.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
+     * @param throwable An optional exception associated with the error.
      */
     fun e(message: String, tag: String = defaultTag, throwable: Throwable? = null) {
-        logger.e(message, tag, throwable)
+        LoggerFactory.get(tag).error(throwable) { message }
     }
 
     /**
-     * Log a FATAL message. This will crash the app after logging.
-     * Use only for unrecoverable errors.
+     * Logs a FATAL message and throws a [RuntimeException] after all sinks have been flushed.
+     *
+     * This method never returns normally. Use only for unrecoverable errors.
+     *
+     * @param message The message to log.
+     * @param tag The tag to identify the log source. Defaults to the current default tag.
+     * @param throwable An optional exception to attach as the cause.
      */
     fun fatal(message: String, tag: String = defaultTag, throwable: Throwable? = null) {
-        logger.wtf(message, tag, throwable)
-        throwable?.let { throw RuntimeException("FATAL: ${it.message}", it) }
+        LoggerFactory.get(tag).fatal(throwable) { message }
     }
 
     /**
-     * Create a logger wrapper with tag derived from the class name.
+     * Returns a [LogWrapper] whose tag is derived from the simple name of class [T].
      *
      * Usage:
      * ```
@@ -106,7 +132,7 @@ object Log {
     }
 
     /**
-     * Create a logger wrapper with a custom tag.
+     * Returns a [LogWrapper] that uses [tag] on every call.
      *
      * Usage:
      * ```
@@ -121,49 +147,58 @@ object Log {
 }
 
 /**
- * A wrapper around Log that uses a fixed tag.
- * Created via Log.withTag() or Log.withClassTag<T>().
+ * A fixed-tag wrapper around [Log].
+ *
+ * Obtained via [Log.withTag] or [Log.withClassTag]. All calls delegate to the
+ * corresponding [Log] method with the wrapper's tag.
  */
 class LogWrapper(private val tag: String) {
 
     /**
-     * Log a VERBOSE message with this wrapper's tag.
+     * Logs a VERBOSE message with this wrapper's tag.
      */
     fun v(message: String) {
         Log.v(message, tag)
     }
 
     /**
-     * Log a DEBUG message with this wrapper's tag.
+     * Logs a DEBUG message with this wrapper's tag.
      */
     fun d(message: String) {
         Log.d(message, tag)
     }
 
     /**
-     * Log an INFO message with this wrapper's tag.
+     * Logs an INFO message with this wrapper's tag.
      */
     fun i(message: String) {
         Log.i(message, tag)
     }
 
     /**
-     * Log a WARN message with this wrapper's tag.
+     * Logs a WARN message with this wrapper's tag.
+     *
+     * @param throwable An optional exception associated with the warning.
      */
     fun w(message: String, throwable: Throwable? = null) {
         Log.w(message, tag, throwable)
     }
 
     /**
-     * Log an ERROR message with this wrapper's tag.
+     * Logs an ERROR message with this wrapper's tag.
+     *
+     * @param throwable An optional exception associated with the error.
      */
     fun e(message: String, throwable: Throwable? = null) {
         Log.e(message, tag, throwable)
     }
 
     /**
-     * Log a FATAL message with this wrapper's tag.
-     * This will crash the app after logging.
+     * Logs a FATAL message with this wrapper's tag and throws after flushing all sinks.
+     *
+     * This method never returns normally.
+     *
+     * @param throwable An optional exception to attach as the cause.
      */
     fun fatal(message: String, throwable: Throwable? = null) {
         Log.fatal(message, tag, throwable)
@@ -177,40 +212,54 @@ class LogWrapper(private val tag: String) {
 
 
 /**
- * Extension function to log with automatic class tag.
- *
- * Usage:
- * ```
- * class MyClass {
- *     fun doWork() {
- *         loggerD("Starting work")
- *         loggerE("Work failed", exception)
- *     }
- * }
- * ```
+ * Extension function to log a VERBOSE message using the simple name of [T] as the tag.
  */
 inline fun <reified T> T.loggerV(message: String) {
     Log.v(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
+/**
+ * Extension function to log a DEBUG message using the simple name of [T] as the tag.
+ */
 inline fun <reified T> T.loggerD(message: String) {
     Log.d(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
+/**
+ * Extension function to log an INFO message using the simple name of [T] as the tag.
+ */
 inline fun <reified T> T.loggerI(message: String) {
     Log.i(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG)
 }
 
+/**
+ * Extension function to log a WARN message using the simple name of [T] as the tag.
+ *
+ * @param throwable An optional exception associated with the warning.
+ */
 inline fun <reified T> T.loggerW(message: String, throwable: Throwable? = null) {
     Log.w(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
 
+/**
+ * Extension function to log an ERROR message using the simple name of [T] as the tag.
+ *
+ * @param throwable An optional exception associated with the error.
+ */
 inline fun <reified T> T.loggerE(message: String, throwable: Throwable? = null) {
     Log.e(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
 
+/**
+ * Extension function to log a FATAL message using the simple name of [T] as the tag.
+ *
+ * This function never returns normally.
+ *
+ * @param throwable An optional exception to attach as the cause.
+ */
 inline fun <reified T> T.loggerFatal(message: String, throwable: Throwable? = null) {
     Log.fatal(message, T::class.simpleName ?: KMP_LOGGER_DEFAULT_TAG, throwable)
 }
 
+/** The default tag used when no explicit tag is provided to [Log]. */
 const val KMP_LOGGER_DEFAULT_TAG = "App"

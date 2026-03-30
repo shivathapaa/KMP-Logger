@@ -56,7 +56,7 @@ object LoggerFactory {
     private fun installDefault() {
         install(
             LoggerConfig.Builder()
-                .minLevel(LogLevel.INFO)
+                .minLevel(LogLevel.VERBOSE)
                 .addSink(DefaultLogSink())
                 .build()
         )
