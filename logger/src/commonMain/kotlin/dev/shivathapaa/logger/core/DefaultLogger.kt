@@ -26,9 +26,9 @@ internal class DefaultLogger(
     /**
      * Assembles and submits a [LogEvent] to the pipeline.
      *
-     * The [message] lambda is only evaluated after the pipeline pre-check
-     * confirms the event would not be filtered, avoiding unnecessary work
-     * for suppressed log levels.
+     * Captures the current timestamp, thread name, active context, and
+     * caller-supplied attributes, then forwards the assembled event to the
+     * pipeline for level filtering and sink dispatch.
      *
      * @param level The severity level of the log.
      * @param throwable An optional exception associated with the log.
@@ -56,10 +56,4 @@ internal class DefaultLogger(
 
         pipeline.process(event)
     }
-
-    /**
-     * Retrieves the name of the current thread.
-     * Currently returns a placeholder "main".
-     */
-    private fun currentThreadName(): String = "main" // Will work with context later
 }
