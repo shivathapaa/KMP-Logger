@@ -26,9 +26,8 @@ internal class DefaultLogger(
     /**
      * Assembles and submits a [LogEvent] to the pipeline.
      *
-     * Captures the current timestamp, thread name, active context, and
-     * caller-supplied attributes, then forwards the assembled event to the
-     * pipeline for level filtering and sink dispatch.
+     * The policy check runs before [message] is evaluated, so message
+     * construction is skipped entirely for suppressed log levels.
      *
      * @param level The severity level of the log.
      * @param throwable An optional exception associated with the log.
@@ -42,6 +41,7 @@ internal class DefaultLogger(
         message: () -> String
     ) {
         if (level == LogLevel.OFF) return
+        if (!pipeline.wouldProcess(level, name)) return
 
         val event = LogEvent(
             timestamp = currentTimeMillis(),

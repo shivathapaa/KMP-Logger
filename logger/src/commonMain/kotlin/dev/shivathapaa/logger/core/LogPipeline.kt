@@ -15,6 +15,16 @@ internal class LogPipeline(
     private val sinks: List<LogSink>
 ) {
     /**
+     * Returns `true` if an event at [level] from [loggerName] would pass the
+     * policy check and reach the sinks.
+     *
+     * @param level The severity level to test.
+     * @param loggerName The name of the logger originating the event.
+     */
+    fun wouldProcess(level: LogLevel, loggerName: String): Boolean =
+        policy.allows(level, loggerName)
+
+    /**
      * Processes a log event by checking it against the policy and emitting it to sinks if allowed.
      * If the log level is [LogLevel.FATAL], it flushes all sinks and throws a [RuntimeException].
      *
