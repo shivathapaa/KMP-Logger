@@ -14,6 +14,10 @@ version = "1.3.0"
 
 kotlin {
     sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+
         androidLibrary {
             namespace = "io.github.shivathapaa.logger"
             compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -32,10 +36,27 @@ kotlin {
             }
         }
     }
-    jvm()
+    jvm {
+        testRuns["test"].executionTask.configure {
+            useJUnit()
+        }
+    }
+
     js {
-        browser()
-        nodejs()
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless() // requires Chrome installed; skip with -x jsBrowserTest
+                }
+            }
+        }
+        nodejs {
+            testTask {
+                useMocha {
+                    timeout = "60s"
+                }
+            }
+        }
         useEsModules()
         binaries.executable()
         binaries.library()
@@ -43,11 +64,24 @@ kotlin {
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
-        nodejs()
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless() // requires Chrome installed; skip with -x wasmJsBrowserTest
+                }
+            }
+        }
+        nodejs {
+            testTask {
+                useMocha {
+                    timeout = "60s"
+                }
+            }
+        }
         binaries.executable()
         binaries.library()
     }
+
     iosX64()
     iosArm64()
     iosSimulatorArm64()
@@ -58,6 +92,11 @@ kotlin {
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         compilations["main"].compileTaskProvider.configure {
+            compilerOptions {
+                freeCompilerArgs.add("-Xexport-kdoc")
+            }
+        }
+        compilations["test"].compileTaskProvider.configure {
             compilerOptions {
                 freeCompilerArgs.add("-Xexport-kdoc")
             }
