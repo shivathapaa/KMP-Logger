@@ -41,7 +41,7 @@ internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormat
 
         appendField("logger", event.loggerName)
 
-        appendField("timestamp", event.timestamp)
+        appendField("timestamp", event.timestamp, raw = true)
 
         event.message?.let { appendField("message", it) }
 
