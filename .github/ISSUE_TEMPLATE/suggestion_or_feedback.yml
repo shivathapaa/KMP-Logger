@@ -1,0 +1,47 @@
+name: Suggestion or Feedback
+description: Share general feedback, documentation improvements, or API ergonomics suggestions
+title: "[Suggestion]: "
+labels: ["suggestion/feedback"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        All feedback is welcome - API design, documentation, examples, or anything else.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What area does your feedback relate to?
+      options:
+        - API design / ergonomics
+        - Documentation
+        - Examples / sample code
+        - Performance
+        - Developer experience (DX)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your suggestion or feedback
+      description: Describe your idea, concern, or improvement clearly.
+      placeholder: The `withContext` API would feel more natural if it accepted a trailing lambda directly...
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behavior / state
+      description: How does it work today, and what makes it awkward or confusing?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Code samples, references, screenshots, or links that illustrate your point.
+      render: kotlin
