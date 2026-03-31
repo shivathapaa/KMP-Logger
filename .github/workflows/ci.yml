@@ -34,4 +34,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Run tests
-        run: ./gradlew allTests --continue -x jsBrowserTest -x wasmJsBrowserTest
+        run: ./gradlew allTests --continue -x jsBrowserTest -x wasmJsBrowserTest -x kotlinWasmStoreYarnLock
