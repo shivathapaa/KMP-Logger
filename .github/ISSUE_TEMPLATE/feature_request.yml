@@ -1,0 +1,74 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for KMP-Logger
+title: "[Feature]: "
+labels: [ "enhancement" ]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea clearly so it can be evaluated.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem this feature would solve
+      description: Is your feature request related to a problem? Describe it.
+      placeholder: I'm frustrated when I can't filter log output by context key at runtime...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: A clear description of what you'd like to happen, including any API ideas.
+      placeholder: |
+        Add a `contextFilter` option to `LogPolicy` so you can write:
+        ```kotlin
+        LogPolicy { contextFilter { it["requestId"] != null } }
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative approaches or workarounds you've already tried?
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Relevant platform(s)
+      description: Which platforms would this feature apply to?
+      options:
+        - label: Android
+        - label: iOS
+        - label: macOS
+        - label: watchOS
+        - label: tvOS
+        - label: JVM (desktop / server)
+        - label: JS (Node.js)
+        - label: JS (Browser)
+        - label: Wasm/JS
+        - label: Linux
+        - label: MinGW (Windows)
+        - label: All platforms
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Would unblock my use case
+        - Blocking - can't use the library without it
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, links, prior art, or anything else relevant.
