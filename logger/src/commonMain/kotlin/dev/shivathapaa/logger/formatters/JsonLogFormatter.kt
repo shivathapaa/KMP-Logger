@@ -12,7 +12,7 @@ import dev.shivathapaa.logger.core.LogEvent
  * - `level` - the log level name (e.g. `"INFO"`)
  * - `levelEmoji` - the level's emoji indicator, present only when [showEmoji] is `true`
  * - `logger` - the logger name / tag
- * - `timestamp` - epoch milliseconds, present only when [LogEvent.timestamp] is non-null
+ * - `timestamp` - epoch milliseconds since the Unix epoch
  * - `message` - the log message, present only when non-null
  * - `attributes` - key/value map of structured attributes, present only when non-empty
  * - `context` - key/value map of the active [dev.shivathapaa.logger.core.LogContext], present only when non-empty
@@ -41,7 +41,7 @@ internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormat
 
         appendField("logger", event.loggerName)
 
-        event.timestamp?.let { appendField("timestamp", it) }
+        appendField("timestamp", event.timestamp)
 
         event.message?.let { appendField("message", it) }
 
