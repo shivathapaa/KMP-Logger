@@ -24,7 +24,7 @@ jobs:
           node-version: 'lts/*'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run all tests
         run: ./gradlew allTests --continue -x jsBrowserTest -x wasmJsBrowserTest
@@ -44,7 +44,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Validate version matches release tag
         run: |

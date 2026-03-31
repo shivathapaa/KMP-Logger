@@ -31,7 +31,7 @@ jobs:
           node-version: 'lts/*'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Run tests
         run: ./gradlew allTests --continue -x jsBrowserTest -x wasmJsBrowserTest
