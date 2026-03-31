@@ -1,20 +1,53 @@
 # KMP Logger
 
-A lightweight, structured logging library for Kotlin Multiplatform projects with support for
-different platforms i.e.,
-Android, iOS, js, wasmJs, jvm, macosX64, macosArm64, linuxX64, and mingwX64.
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.shivathapaa/logger"><img src="https://img.shields.io/maven-central/v/io.github.shivathapaa/logger?label=Maven%20Central&color=blue" alt="Maven Central"/></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.1+-7F52FF.svg?logo=kotlin&logoColor=white" alt="Kotlin"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"/></a>
+  <a href="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml"><img src="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+</p>
+
+A lightweight, structured logging library for Kotlin Multiplatform. Supports Android, iOS, macOS,
+watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Simple Log API](#simple-log-api)
+- [Structured Logging Quick Start](#structured-logging-quick-start)
+- [Core Concepts](#core-concepts)
+- [Configuration](#configuration)
+- [Log Context](#log-context)
+- [Log Formatters](#log-formatters)
+- [Available Sinks](#available-sinks)
+- [Simple vs Structured Logging](#simple-vs-structured-logging)
+- [Usage Examples](#usage-examples)
+- [Testing](#testing)
+- [Advanced Topics](#advanced-topics)
+- [Platform-Specific Setup](#platform-specific-setup)
+- [Best Practices](#best-practices)
+- [Performance Considerations](#performance-considerations)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- **Structured Logging** - Attach key-value attributes to log events
-- **Basic Logging** - Simple log levels and messages
-- **Log Levels** - VERBOSE, DEBUG, INFO, WARN, ERROR, FATAL, OFF
-- **Configurable** - Per-logger level overrides and multiple sinks
-- **Context Support** - Thread-local and coroutine context propagation
-- **Lazy Evaluation** - Log messages only evaluated when needed
-- **Platform Native** - Uses Logcat on Android, NSLog on iOS
-- **Testable** - Built-in TestSink for unit testing
-- **Extensible** - Custom sinks for different outputs
+- **Two APIs** - Simple `Log.*` for quick debugging; structured `Logger` for production use
+- **Log Levels** - `VERBOSE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+- **Structured Logging** - Attach typed key-value attributes to any log event
+- **Context Propagation** - Thread-local context on JVM/Android, `NSThread` dictionary on Apple,
+  scoped save/restore everywhere else
+- **Lazy Evaluation** - Message lambda is never evaluated when the event would be filtered out
+- **Real Timestamps** - Epoch milliseconds captured on all platforms
+- **Thread Names** - Captured natively on Android, JVM, and Apple; `"main"` elsewhere
+- **Platform-Native Output** - Logcat on Android, `NSLog` on Apple, `console` on JS/Wasm, `stdout`on
+  JVM/Linux/MinGW
+- **Configurable Pipeline** - Per-tag level overrides, multiple sinks, custom formatters
+- **Built-in Formatters** - Default (human-readable), JSON (log aggregators), Compact, and Pretty
+- **Testable** - Built-in `TestSink` for asserting log output in unit tests
+- **Extensible** - Implement `LogSink` to send logs anywhere (remote, file, analytics)
 
 ## Installation
 
@@ -25,7 +58,7 @@ commonMain.dependencies {
 }
 ```
 
-For only Android app,
+For Android-only apps:
 
 ```kotlin
 // build.gradle.kts (androidMain)
@@ -34,37 +67,31 @@ androidMain.dependencies {
 }
 ```
 
-For different platforms, check artifacts
-at [Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa)
+For platform-specific artifacts,
+see [Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa).
 
-Checkout [Advance Sinks](#advanced-topics).
 
-- [Custom Sinks](#custom-sinks)
-- [Remote Logging Sink](#remote-logging-sink)
-- [Firebase Logging Sink](#firebase-logging-sink)
-- [Facebook Logging Sink](#facebook-logging-sink)
-- [Filtering Sensitive Data](#filtering-sensitive-data)
 
 ## Simple Log API
 
-For quick, non-structured logging without the need for configuration, use the simple `Log` API:
+For quick logging without any setup, use the `Log` API. No configuration required - it uses
+`VERBOSE` as the default minimum level and writes to the platform-native output.
 
 ### Basic Usage
 
 ```kotlin
-// Direct logging with default tag
 Log.v("Verbose message")
 Log.d("Debug message")
 Log.i("App started")
 Log.w("Warning message")
 Log.e("Error occurred")
-Log.fatal("Critical failure") // always throws after logging, with or without a throwable
+Log.fatal("Critical failure") // always throws after logging
 
 // With exceptions
 Log.e("Operation failed", throwable = exception)
 Log.w("Recovered from error", throwable = exception)
 
-// With custom tag
+// With a custom tag
 Log.i("User logged in", tag = "Auth")
 Log.d("Request completed", tag = "Network")
 ```
@@ -75,26 +102,24 @@ Log.d("Request completed", tag = "Network")
 // Set once during app initialization
 Log.setDefaultTag("MyApp")
 
-// All subsequent logs use this tag
+// All subsequent calls use this tag
 Log.i("This uses 'MyApp' tag")
 ```
 
 ### Class-Based Logger
-
-Create a logger instance with automatic class name as tag:
 
 ```kotlin
 class UserViewModel {
     private val log = Log.withClassTag<UserViewModel>()
 
     fun login() {
-        log.d("Login attempt started")
+        log.d { "Login attempt started" }
 
         try {
-            // Login logic
-            log.i("Login successful")
+            // login logic
+            log.i { "Login successful" }
         } catch (e: Exception) {
-            log.e("Login failed", throwable = e)
+            log.e(throwable = e) { "Login failed" }
         }
     }
 }
@@ -102,33 +127,29 @@ class UserViewModel {
 
 ### Module-Based Logger
 
-Create a logger for a specific module or component:
-
 ```kotlin
 object NetworkModule {
     private val log = Log.withTag("Network")
 
     fun fetchData() {
-        log.d("Starting API request")
-        log.i("Request completed successfully")
+        log.d { "Starting API request" }
+        log.i { "Request completed successfully" }
     }
 }
 ```
 
 ### Extension Functions
 
-Use extension functions for the cleanest syntax:
-
 ```kotlin
 class MyViewModel {
     fun doWork() {
-        loggerD("Starting work")  // Uses "MyViewModel" as tag
-        loggerI("Work in progress")
+        loggerD { "Starting work" }   // uses "MyViewModel" as tag
+        loggerI { "Work in progress" }
 
         try {
             riskyOperation()
         } catch (e: Exception) {
-            loggerE("Work failed", e)  // Automatically uses class name
+            loggerE(e) { "Work failed" }
         }
     }
 }
@@ -145,7 +166,7 @@ Available extensions: `loggerV()`, `loggerD()`, `loggerI()`, `loggerW()`, `logge
 fun main() {
     val config = LoggerConfig.Builder()
         .minLevel(LogLevel.DEBUG)
-        .addSink(DefaultLogSink())  // Choose predefined sink or create custom
+        .addSink(DefaultLogSink())
         .build()
 
     LoggerFactory.install(config)
@@ -185,14 +206,13 @@ above it:
 
 ### Lazy Evaluation
 
-Log messages use lambda syntax for lazy evaluation - the message is only computed if the log level
-is enabled:
+Log messages use lambda syntax - the message is only computed if the log level is enabled:
 
 ```kotlin
-// Bad: Always computes expensive operation
+// Bad: always computes the expensive operation
 logger.debug("Result: ${expensiveComputation()}")
 
-// Good: Only computes if DEBUG is enabled
+// Good: only computes if DEBUG is enabled
 logger.debug { "Result: ${expensiveComputation()}" }
 ```
 
@@ -218,8 +238,6 @@ Output:
 
 ### Exception Logging
 
-Log exceptions with full stack traces:
-
 ```kotlin
 try {
     riskyOperation()
@@ -240,8 +258,8 @@ try {
 
 ```kotlin
 val config = LoggerConfig.Builder()
-    .minLevel(LogLevel.INFO)          // Set minimum log level
-    .addSink(DefaultLogSink())       // Add output sink
+    .minLevel(LogLevel.INFO)
+    .addSink(DefaultLogSink())
     .build()
 
 LoggerFactory.install(config)
@@ -249,38 +267,29 @@ LoggerFactory.install(config)
 
 ### Per-Logger Level Overrides
 
-Control log levels for specific loggers:
-
 ```kotlin
 val config = LoggerConfig.Builder()
-    .minLevel(LogLevel.INFO)                    // Default for all loggers
-    .override("NetworkModule", LogLevel.DEBUG)  // Debug for network logs
-    .override("ThirdPartySDK", LogLevel.ERROR)  // Only errors from SDK
+    .minLevel(LogLevel.INFO)                    // default for all loggers
+    .override("NetworkModule", LogLevel.DEBUG)  // verbose network logs
+    .override("ThirdPartySDK", LogLevel.ERROR)  // silence noisy SDK
     .addSink(DefaultLogSink())
     .build()
 
 LoggerFactory.install(config)
 
-// This logger will use DEBUG level
-val networkLogger = LoggerFactory.get("NetworkModule")
-
-// This logger will use ERROR level
-val sdkLogger = LoggerFactory.get("ThirdPartySDK")
-
-// This logger will use INFO (default)
-val appLogger = LoggerFactory.get("MyApp")
+val networkLogger = LoggerFactory.get("NetworkModule") // uses DEBUG
+val sdkLogger = LoggerFactory.get("ThirdPartySDK") // uses ERROR
+val appLogger = LoggerFactory.get("MyApp")         // uses INFO (default)
 ```
 
 ### Multiple Sinks
 
-Send logs to multiple destinations:
-
 ```kotlin
 val config = LoggerConfig.Builder()
     .minLevel(LogLevel.DEBUG)
-    .addSink(DefaultLogSink())                            // Platform-native output
-    .addSink(FileSink("app.log"))                         // File output (custom)
-    .addSink(RemoteLogSink { payload -> send(payload) })  // Remote logging
+    .addSink(DefaultLogSink())                            // platform-native output
+    .addSink(FileSink("app.log"))                         // file output (custom)
+    .addSink(RemoteLogSink { payload -> send(payload) })  // remote logging
     .build()
 ```
 
@@ -315,20 +324,30 @@ Output:
 
 ### Nested Context
 
-Contexts are automatically merged:
+Contexts are automatically merged. Inner keys override outer keys on collision:
 
 ```kotlin
 val traceContext = LogContext(mapOf("traceId" to "trace-123"))
 val spanContext = LogContext(mapOf("spanId" to "span-456"))
 
 LogContextHolder.withContext(traceContext) {
-    logger.info { "Outer scope" }  // Has traceId
+    logger.info { "Outer scope" }  // has traceId
 
     LogContextHolder.withContext(spanContext) {
-        logger.info { "Inner scope" }  // Has both traceId and spanId
+        logger.info { "Inner scope" }  // has traceId + spanId
     }
 
-    logger.info { "Back to outer" }  // Has only traceId again
+    logger.info { "Back to outer" }  // has traceId only
+}
+```
+
+### withContext Returns a Value
+
+`withContext` propagates the block's return value, so you can use it inline:
+
+```kotlin
+val result = LogContextHolder.withContext(context) {
+    processRequest() // return value is propagated
 }
 ```
 
@@ -356,14 +375,14 @@ ConsoleSink(LogFormatters.compact(showEmoji = false))
 
 ### Pretty
 
-Multi-line human-readable output. Supports real timestamps and thread names.
+Multi-line human-readable output with timestamps and thread names.
 
 ```kotlin
 ConsoleSink(
     LogFormatters.pretty(
         showEmoji = true,
-        includeTimestamp = true,  // real epoch-ms timestamp from LogEvent
-        includeThread = true,     // real thread name from LogEvent
+        includeTimestamp = true,
+        includeThread = true,
         prettyPrint = true
     )
 )
@@ -385,17 +404,15 @@ not prepended before it - so the output is always valid JSON:
 ```json
 {
   "levelEmoji": "💙",
-  "timestamp": 1711785600000,
   "level": "INFO",
   "logger": "PaymentService",
+  "timestamp": 1711785600000,
   "message": "Payment accepted",
-  "thread": "main",
-  "attributes": {},
-  "context": {}
+  "thread": "main"
 }
 ```
 
-### Custom formatter
+### Custom Formatter
 
 ```kotlin
 val myFormatter = LogEventFormatter { event ->
@@ -408,32 +425,28 @@ ConsoleSink(myFormatter)
 
 ### DefaultLogSink
 
-Platform-specific native logging (recommended):
+Platform-native logging (recommended for most use cases):
 
 ```kotlin
 .addSink(DefaultLogSink())
 ```
 
-- **Android**: Uses `android.util.Log` (Logcat)
-- **iOS**: Uses `NSLog`
+- **Android** - `android.util.Log` (Logcat)
+- **Apple** - `NSLog`
+- **JVM / Linux / MinGW** - `stdout`
+- **JS / Wasm** - `console`
 
 ### ConsoleSink
 
-Basic console output with formatting:
+Console output with a configurable formatter:
 
 ```kotlin
 .addSink(ConsoleSink())
 ```
 
-Output format:
-
-```
-[INFO] MyApp - Message | attrs={key=value} | ctx={context=data}
-```
-
 ### RemoteLogSink
 
-Forwards the formatted event string to any remote destination via a `send` lambda.
+Formats the event and forwards it to any destination via a `send` lambda:
 
 ```kotlin
 .addSink(
@@ -447,22 +460,20 @@ Forwards the formatted event string to any remote destination via a `send` lambd
 
 ### TestSink
 
-Capture logs for unit testing:
+Captures events for assertion in unit tests:
 
 ```kotlin
 val testSink = TestSink()
 
-val config = LoggerConfig.Builder()
-    .minLevel(LogLevel.DEBUG)
-    .addSink(testSink)
-    .build()
+LoggerFactory.install(
+    LoggerConfig.Builder()
+        .minLevel(LogLevel.DEBUG)
+        .addSink(testSink)
+        .build()
+)
 
-LoggerFactory.install(config)
-
-// Run your code
 logger.info { "Test message" }
 
-// Verify
 assertEquals(1, testSink.events.size)
 assertEquals(LogLevel.INFO, testSink.events[0].level)
 assertEquals("Test message", testSink.events[0].message)
@@ -473,30 +484,30 @@ assertEquals("Test message", testSink.events[0].message)
 Both APIs share the same pipeline. `LoggerFactory.install()` configuration - sinks, level
 filtering, and per-tag overrides - applies to `Log.*` calls as well as `Logger` calls.
 
-| Feature                        | Simple `Log` API      | Structured `Logger` API   |
-|--------------------------------|-----------------------|---------------------------|
-| Setup required                 | No (auto-initialized) | No (auto-initialized)     |
-| Respects `LoggerFactory` sinks | ✅ Yes                 | ✅ Yes                     |
-| Respects level overrides       | ✅ Yes                 | ✅ Yes                     |
-| Testable via `TestSink`        | ✅ Yes                 | ✅ Yes                     |
-| Plain string message           | ✅ Yes                 | No (lazy lambda required) |
-| Lazy message evaluation        | ❌ No                  | ✅ Yes                     |
-| Structured attributes          | ❌ No                  | ✅ Yes                     |
-| Set log context                | ❌ No                  | ✅ Via `LogContextHolder`  |
-| Carries active context         | ✅ Yes (thread-local)  | ✅ Yes (thread-local)      |
+| Feature                        | Simple `Log` API                     | Structured `Logger` API  |
+|--------------------------------|--------------------------------------|--------------------------|
+| Setup required                 | No (auto-initialized)                | No (auto-initialized)    |
+| Respects `LoggerFactory` sinks | ✅ Yes                                | ✅ Yes                    |
+| Respects level overrides       | ✅ Yes                                | ✅ Yes                    |
+| Testable via `TestSink`        | ✅ Yes                                | ✅ Yes                    |
+| Lazy message evaluation        | ✅ Yes (via `withTag`/`withClassTag`) | ✅ Yes                    |
+| Direct string message          | ✅ Yes (`Log.i("msg")`)               | ❌ No (lambda required)   |
+| Structured attributes          | ❌ No                                 | ✅ Yes                    |
+| Set log context                | ❌ No                                 | ✅ Via `LogContextHolder` |
+| Carries active context         | ✅ Yes (thread-local)                 | ✅ Yes (thread-local)     |
 
 **Use Simple `Log` API when:**
 
 - Quick debugging during development
-- Simple one-liner output with no structured data
-- Prototyping
+- Prototyping or simple scripts
+- No structured data needed
 
 **Use Structured `Logger` API when:**
 
 - Production applications
 - Lazy evaluation matters (hot paths, expensive message construction)
-- Need structured attributes
-- Want to set log context for a scope
+- Need structured key-value attributes
+- Want to scope context to a block
 - Unit testing specific log output
 
 ## Usage Examples
@@ -512,7 +523,7 @@ logger.info(
         attr("duration", 234)
         attr("ip", "192.168.1.1")
     }
-) { "HTTP Request" }
+) { "HTTP request" }
 ```
 
 ### Database Query Logging
@@ -542,49 +553,25 @@ logger.info(
 ) { "Order created successfully" }
 ```
 
-### Async Logging
-
-```kotlin
-suspend fun backgroundTask() {
-    val logger = LoggerFactory.get("BackgroundTask")
-
-    logger.info { "Task started" }
-
-    delay(1000)
-
-    logger.debug { "Processing..." }
-
-    delay(1000)
-
-    logger.info { "Task completed" }
-}
-```
-
 ## Testing
 
 ### Unit Testing with TestSink
 
 ```kotlin
 @Test
-fun should_log_error_when_operation_fails() {
-    // Setup
+fun logErrorWhenOperationFails() {
     val testSink = TestSink()
-    val config = LoggerConfig.Builder()
-        .minLevel(LogLevel.DEBUG)
-        .addSink(testSink)
-        .build()
-
-    LoggerFactory.install(config)
+    LoggerFactory.install(
+        LoggerConfig.Builder()
+            .minLevel(LogLevel.DEBUG)
+            .addSink(testSink)
+            .build()
+    )
     val logger = LoggerFactory.get("MyClass")
 
-    // Execute
-    logger.error(
-        attrs = { attr("operation", "save") }
-    ) { "Failed to save data" }
+    logger.error(attrs = { attr("operation", "save") }) { "Failed to save data" }
 
-    // Assert
     assertEquals(1, testSink.events.size)
-
     val event = testSink.events[0]
     assertEquals(LogLevel.ERROR, event.level)
     assertEquals("Failed to save data", event.message)
@@ -597,19 +584,17 @@ fun should_log_error_when_operation_fails() {
 
 ```kotlin
 @Test
-fun should_propagate_context_to_nested_logs() {
+fun propagatesContextToNestedLogs() {
     val testSink = TestSink()
-    val config = LoggerConfig.Builder()
-        .minLevel(LogLevel.DEBUG)
-        .addSink(testSink)
-        .build()
-
-    LoggerFactory.install(config)
+    LoggerFactory.install(
+        LoggerConfig.Builder()
+            .minLevel(LogLevel.DEBUG)
+            .addSink(testSink)
+            .build()
+    )
     val logger = LoggerFactory.get("ContextTest")
 
-    val context = LogContext(mapOf("requestId" to "req-123"))
-
-    LogContextHolder.withContext(context) {
+    LogContextHolder.withContext(LogContext(mapOf("requestId" to "req-123"))) {
         logger.info { "Log 1" }
         logger.info { "Log 2" }
     }
@@ -624,8 +609,6 @@ fun should_propagate_context_to_nested_logs() {
 
 ### Custom Sinks
 
-Create custom sinks for specialized logging:
-
 ```kotlin
 class FileSink(private val filename: String) : LogSink {
     private val file = File(filename)
@@ -636,7 +619,7 @@ class FileSink(private val filename: String) : LogSink {
     }
 
     override fun flush() {
-        // Ensure all data is written
+        // ensure all data is written
     }
 }
 ```
@@ -644,8 +627,7 @@ class FileSink(private val filename: String) : LogSink {
 ### Firebase Logging Sink
 
 ```kotlin
-
-actual class FirebaseLogSink(
+class FirebaseLogSink(
     private val minLevel: LogLevel = LogLevel.WARN,
     private val formatter: LogEventFormatter = LogFormatters.json(false),
     private val crashlytics: FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
@@ -664,10 +646,7 @@ actual class FirebaseLogSink(
                 val throwable = event.throwable ?: LoggedException(message)
                 crashlytics.recordException(throwable)
             }
-
-            else -> {
-                crashlytics.log(message)
-            }
+            else -> crashlytics.log(message)
         }
     }
 
@@ -682,13 +661,13 @@ actual class FirebaseLogSink(
 
     private class LoggedException(message: String) : RuntimeException(message)
 }
-// Similar actual for other platforms if available 
+// Provide a no-op implementation for non-Android targets
 ```
 
 ### Facebook Logging Sink
 
 ```kotlin
-actual class FacebookLogSink(
+class FacebookLogSink(
     private val minLevel: LogLevel = LogLevel.INFO,
     private val appEventsLogger: AppEventsLogger
 ) : LogSink {
@@ -696,62 +675,39 @@ actual class FacebookLogSink(
     override fun emit(event: LogEvent) {
         if (event.level < minLevel) return
 
-        val eventName = mapEventName(event)
-        val params = buildParams(event)
-
-        appEventsLogger.logEvent(eventName, params)
-    }
-
-    private fun mapEventName(event: LogEvent): String {
-        return when (event.level) {
+        val eventName = when (event.level) {
             LogLevel.INFO -> "app_log_info"
             LogLevel.WARN -> "app_log_warn"
             LogLevel.ERROR -> "app_log_error"
             LogLevel.FATAL -> "app_log_fatal"
             else -> "app_log"
         }
-    }
 
-    private fun buildParams(event: LogEvent): Bundle {
-        return Bundle().apply {
+        val params = Bundle().apply {
             putString("logger", event.loggerName)
             putString("level", event.level.name)
             putString("thread", event.thread)
+            putString("message", event.message.take(100))
 
-            event.message?.let {
-                putString("message", it.take(100))
-            }
-
-            // Attributes
             event.attributes.forEach { (k, v) ->
-                putString(
-                    "attr_${k.safeKey()}",
-                    v?.toString()?.take(100)
-                )
+                putString("attr_${k.safeKey()}", v?.toString()?.take(100))
             }
-
-            // Context
             event.context.values.forEach { (k, v) ->
-                putString(
-                    "ctx_${k.safeKey()}",
-                    v?.toString()?.take(100)
-                )
+                putString("ctx_${k.safeKey()}", v?.toString()?.take(100))
             }
-
-            // Error metadata (not stacktrace!)
             event.throwable?.let {
                 putString("exception", it::class.simpleName)
                 putString("exception_message", it.message?.take(100))
             }
         }
+
+        appEventsLogger.logEvent(eventName, params)
     }
 
     private fun String.safeKey(): String =
-        lowercase()
-            .replace("[^a-z0-9_]".toRegex(), "_")
-            .take(40)
+        lowercase().replace("[^a-z0-9_]".toRegex(), "_").take(40)
 }
-// Similar actual for other platforms if available 
+// Provide a no-op implementation for non-Android targets
 ```
 
 ### Filtering Sensitive Data
@@ -761,62 +717,58 @@ class SanitizingSink(private val delegate: LogSink) : LogSink {
     private val sensitiveKeys = setOf("password", "apiKey", "token")
 
     override fun emit(event: LogEvent) {
-        val sanitizedAttrs = event.attributes.mapValues { (key, value) ->
+        val sanitized = event.attributes.mapValues { (key, value) ->
             if (key in sensitiveKeys) "***REDACTED***" else value
         }
-
-        val sanitizedEvent = event.copy(attributes = sanitizedAttrs)
-        delegate.emit(sanitizedEvent)
+        delegate.emit(event.copy(attributes = sanitized))
     }
 }
 ```
 
-## Platform-Specific Implementation
+## Platform-Specific Setup
 
 ### Android
 
 ```kotlin
-// In your Application class or main activity
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        val config = LoggerConfig.Builder()
-            .minLevel(if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.INFO)
-            .addSink(DefaultLogSink())
-            .build()
-
-        LoggerFactory.install(config)
+        LoggerFactory.install(
+            LoggerConfig.Builder()
+                .minLevel(if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.INFO)
+                .addSink(DefaultLogSink())
+                .build()
+        )
     }
 }
 ```
 
-### iOS
+### iOS / Apple
 
 ```kotlin
-// In your AppDelegate or main entry point
 fun initializeApp() {
-    val config = LoggerConfig.Builder()
-        .minLevel(LogLevel.DEBUG)
-        .addSink(DefaultLogSink())
-        .build()
-
-    LoggerFactory.install(config)
+    LoggerFactory.install(
+        LoggerConfig.Builder()
+            .minLevel(LogLevel.DEBUG)
+            .addSink(DefaultLogSink())
+            .build()
+    )
 }
 ```
 
-### JVM/Desktop
+### JVM / Desktop
 
 ```kotlin
 fun main() {
-    val config = LoggerConfig.Builder()
-        .minLevel(LogLevel.DEBUG)
-        .addSink(DefaultLogSink())
-        .build()
+    LoggerFactory.install(
+        LoggerConfig.Builder()
+            .minLevel(LogLevel.DEBUG)
+            .addSink(DefaultLogSink())
+            .build()
+    )
 
-    LoggerFactory.install(config)
-
-    // Your application code
+    // your application code
 }
 ```
 
@@ -832,24 +784,24 @@ logger.warn { "API rate limit approaching" }
 logger.error { "Failed to connect to database" }
 
 // Bad
-logger.error { "User clicked button" }  // Not an error!
-logger.debug { "Critical system failure" }  // Use ERROR or FATAL
+logger.error { "User clicked button" }       // not an error
+logger.debug { "Critical system failure" }   // use ERROR or FATAL
 ```
 
-### 2. Use Lazy Evaluation
+### 2. Always Use Lazy Evaluation
 
 ```kotlin
-// Good - Lambda only evaluated if level is enabled
+// Good - lambda only evaluated if level is enabled
 logger.debug { "User: ${user.toDetailedString()}" }
 
-// Bad - Always evaluates expensive operation
+// Bad - always evaluates regardless of level
 logger.debug("User: ${user.toDetailedString()}")
 ```
 
 ### 3. Use Structured Attributes
 
 ```kotlin
-// Good - Machine-readable, searchable
+// Good - machine-readable, searchable
 logger.info(
     attrs = {
         attr("userId", userId)
@@ -857,67 +809,66 @@ logger.info(
     }
 ) { "Request completed" }
 
-// Bad - Hard to parse
+// Bad - hard to parse programmatically
 logger.info { "Request completed for user $userId in ${duration}ms" }
 ```
 
 ### 4. Use Context for Common Fields
 
 ```kotlin
-// Good - Context applied to all logs
+// Good - set once for the whole scope
 LogContextHolder.withContext(LogContext(mapOf("requestId" to requestId))) {
     logger.info { "Starting request" }
     processRequest()
     logger.info { "Request completed" }
 }
 
-// Bad - Repeating requestId everywhere
+// Bad - repeating the same field everywhere
 logger.info(attrs = { attr("requestId", requestId) }) { "Starting request" }
 logger.info(attrs = { attr("requestId", requestId) }) { "Request completed" }
 ```
 
-### 5. Don't Log Sensitive Information
+### 5. Never Log Sensitive Information
 
 ```kotlin
 // Good
-logger.info(
-    attrs = { attr("userId", userId) }
-) { "User authenticated" }
+logger.info(attrs = { attr("userId", userId) }) { "User authenticated" }
 
-// Bad - Logging sensitive data
+// Bad
 logger.info { "User logged in with password: $password" }
 ```
 
 ## Performance Considerations
 
-1. **Lazy Evaluation**: Always use lambda syntax for log messages to avoid unnecessary computation
-2. **Log Level Filtering**: Set appropriate `minLevel` to reduce overhead
-3. **Async Logging**: For high-throughput scenarios, consider wrapping your sink in an async wrapper
-4. **Attribute Count**: While attributes are powerful, avoid adding dozens to every log
+1. **Lazy evaluation** - Always use lambda syntax to avoid unnecessary string construction
+2. **Level filtering** - Set an appropriate `minLevel` to reduce overhead in production
+3. **Async sinks** - For high-throughput scenarios, wrap your sink in an async dispatcher
+4. **Attribute count** - Attributes are powerful but avoid attaching dozens to every event
 
 ## Troubleshooting
 
 ### Logs Not Appearing
 
-1. Check that `LoggerFactory.install()` was called
-2. Verify the `minLevel` is not filtering your logs
-3. Check per-logger overrides with `.override()`
+1. If you never called `LoggerFactory.install()`, the default minimum level is `VERBOSE` - all logs
+   should appear by default
+2. If you did call `LoggerFactory.install()`, verify `minLevel` is not filtering your logs
+3. Check per-logger overrides with `.override()` - they take precedence over `minLevel`
 4. Ensure at least one sink is configured
 
 ### Override Not Working
 
 ```kotlin
-// Make sure the logger name EXACTLY matches the override key
+// The logger name must EXACTLY match the override key
 val config = LoggerConfig.Builder()
-    .override("MyLogger", LogLevel.ERROR)  // ← Must match exactly
+    .override("MyLogger", LogLevel.ERROR)  // ← exact string
     .build()
 
-val logger = LoggerFactory.get("MyLogger")  // ← Must match exactly
+val logger = LoggerFactory.get("MyLogger")  // ← must match
 ```
 
 ### Context Not Propagating
 
-Ensure you're using `LogContextHolder.withContext()` and not just creating a `LogContext` object:
+You must call `LogContextHolder.withContext()` - simply creating a `LogContext` object does nothing:
 
 ```kotlin
 // Correct
@@ -925,35 +876,31 @@ LogContextHolder.withContext(context) {
     logger.info { "Has context" }
 }
 
-// Wrong - context is not applied
-val context = LogContext(...)
+// Wrong - context object exists but is never applied
+val context = LogContext(mapOf("key" to "value"))
 logger.info { "No context" }
 ```
 
-## License
-
-Apache License 2.0 - See [LICENSE](LICENSE) file for details
-
 ## Contributing
 
-You can contribute to this project in several ways:
+- Found a bug or have a feature
+  idea? [Open an issue](https://github.com/shivathapaa/KMP-Logger/issues/new/choose)
+- Want to contribute code?
+  Review [CONTRIBUTING.md](https://github.com/shivathapaa/KMP-Logger/blob/main/CONTRIBUTING.md)
+  before opening a pull request
+- Help others discover the library by sharing it or giving the repo a ⭐
 
-- Have an idea for an improvement or a new feature? I'm open to suggestions! Feel free to suggest
-  changes, request enhancements, or report
-  issues [here](https://github.com/shivathapaa/KMP-Logger/issues/new/choose).
-- Share the project with your network to help others discover it.
-- Want to contribute directly? You're welcome to open a pull request! Be sure to review
-  the [CONTRIBUTING.md](https://github.com/shivathapaa/KMP-Logger/blob/main/CONTRIBUTING.md) guide
-  before getting started.
-- Show your support by giving this repository a Star⭐. It means a lot! 😊
+## License
+
+Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Sample Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/e9013bac-2e26-43bf-960c-cdd4eff2f1e7" alt="" width="40%">&nbsp;
-  <img src="https://github.com/user-attachments/assets/c37203c3-2360-4575-bce4-aa19945e6ea0" alt="" width="40%">&nbsp;
+  <img src="https://github.com/user-attachments/assets/e9013bac-2e26-43bf-960c-cdd4eff2f1e7" alt="Android Logcat output showing KMP Logger entries" width="40%">&nbsp;
+  <img src="https://github.com/user-attachments/assets/c37203c3-2360-4575-bce4-aa19945e6ea0" alt="iOS NSLog output showing KMP Logger entries" width="40%">&nbsp;
 </p>
 
 ---
 
-Thank you for star! 😉
+Thanks for the ⭐ - it means a lot!
