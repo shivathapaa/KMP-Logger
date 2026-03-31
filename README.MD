@@ -21,7 +21,7 @@ Android, iOS, js, wasmJs, jvm, macosX64, macosArm64, linuxX64, and mingwX64.
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:1.2.0")
+    implementation("io.github.shivathapaa:logger:1.3.0")
 }
 ```
 
@@ -30,7 +30,7 @@ For only Android app,
 ```kotlin
 // build.gradle.kts (androidMain)
 androidMain.dependencies {
-    implementation("io.github.shivathapaa:logger-android:1.2.0")
+    implementation("io.github.shivathapaa:logger-android:1.3.0")
 }
 ```
 
@@ -58,7 +58,7 @@ Log.d("Debug message")
 Log.i("App started")
 Log.w("Warning message")
 Log.e("Error occurred")
-Log.fatal("Critical failure")
+Log.fatal("Critical failure") // always throws after logging, with or without a throwable
 
 // With exceptions
 Log.e("Operation failed", throwable = exception)
@@ -85,7 +85,7 @@ Create a logger instance with automatic class name as tag:
 
 ```kotlin
 class UserViewModel {
-    private val log = Log.withClassTag()
+    private val log = Log.withClassTag<UserViewModel>()
 
     fun login() {
         log.d("Login attempt started")
@@ -170,17 +170,18 @@ logger.error { "Something went wrong" }
 
 ### Log Levels
 
-Logs are filtered based on priority (lowest to highest):
+Levels are ordered from least to most severe. Setting `minLevel` passes that level and everything
+above it:
 
-| Level   | Priority | Usage                                       |
-|---------|----------|---------------------------------------------|
-| VERBOSE | 0        | Most detailed                               |
-| DEBUG   | 1        | Debugging information                       |
-| INFO    | 2        | General informational messages              |
-| WARN    | 3        | Warning messages for potential issues       |
-| ERROR   | 4        | Error messages for failures                 |
-| FATAL   | 5        | Critical errors (flushes sinks and crashes) |
-| OFF     | 6        | Disables all logging                        |
+| Level   | Emoji | Usage                                           |
+|---------|-------|-------------------------------------------------|
+| VERBOSE | 💜    | Most detailed, development only                 |
+| DEBUG   | 💚    | Debugging information                           |
+| INFO    | 💙    | General informational messages                  |
+| WARN    | 💛    | Potential issues, non-critical                  |
+| ERROR   | ❤️    | Errors and failures that need investigation     |
+| FATAL   | 💔    | Unrecoverable errors - flushes sinks and throws |
+| OFF     | ❌     | Disables all logging                            |
 
 ### Lazy Evaluation
 
@@ -277,9 +278,9 @@ Send logs to multiple destinations:
 ```kotlin
 val config = LoggerConfig.Builder()
     .minLevel(LogLevel.DEBUG)
-    .addSink(DefaultLogSink())      // Console output
-    .addSink(FileSink("app.log"))    // File output (custom)
-    .addSink(RemoteSink(apiUrl))     // Remote logging (custom)
+    .addSink(DefaultLogSink())                            // Platform-native output
+    .addSink(FileSink("app.log"))                         // File output (custom)
+    .addSink(RemoteLogSink { payload -> send(payload) })  // Remote logging
     .build()
 ```
 
@@ -333,13 +334,74 @@ LogContextHolder.withContext(traceContext) {
 
 ## Log Formatters
 
-You can format log as per your use case. Common formatters are provided:
+Formatters convert a `LogEvent` into a string. Pass one to a sink. All built-in formatters
+are obtained via `LogFormatters`:
 
-```kotlin 
-DefaultLogFormatter
-CompactLogFormatter
-PrettyLogFormatter
-JsonLogFormatter
+### Default
+
+Concise single-line: level, tag, message, stack trace if present.
+
+```kotlin
+ConsoleSink(LogFormatters.default(showEmoji = true))
+// 💙 [INFO] PaymentService: Payment accepted
+```
+
+### Compact
+
+Single-line with inline attributes.
+
+```kotlin
+ConsoleSink(LogFormatters.compact(showEmoji = false))
+```
+
+### Pretty
+
+Multi-line human-readable output. Supports real timestamps and thread names.
+
+```kotlin
+ConsoleSink(
+    LogFormatters.pretty(
+        showEmoji = true,
+        includeTimestamp = true,  // real epoch-ms timestamp from LogEvent
+        includeThread = true,     // real thread name from LogEvent
+        prettyPrint = true
+    )
+)
+```
+
+### JSON
+
+Single-line JSON, safe for log aggregation platforms (Elasticsearch, Datadog, Splunk, Loki).
+
+```kotlin
+RemoteLogSink(
+    logFormatter = LogFormatters.json(showEmoji = false)
+) { payload -> myApi.send(payload) }
+```
+
+When `showEmoji = true`, the emoji is added as a `"levelEmoji"` field **inside** the JSON object —
+not prepended before it - so the output is always valid JSON:
+
+```json
+{
+  "levelEmoji": "💙",
+  "timestamp": 1711785600000,
+  "level": "INFO",
+  "logger": "PaymentService",
+  "message": "Payment accepted",
+  "thread": "main",
+  "attributes": {},
+  "context": {}
+}
+```
+
+### Custom formatter
+
+```kotlin
+val myFormatter = LogEventFormatter { event ->
+    "[${event.level}] ${event.loggerName}: ${event.message}"
+}
+ConsoleSink(myFormatter)
 ```
 
 ## Available Sinks
@@ -369,12 +431,18 @@ Output format:
 [INFO] MyApp - Message | attrs={key=value} | ctx={context=data}
 ```
 
-### RemoteSink
+### RemoteLogSink
 
-Basic sink for remote logging:
+Forwards the formatted event string to any remote destination via a `send` lambda.
 
 ```kotlin
-.addSink(RemoteSink())
+.addSink(
+    RemoteLogSink(
+        logFormatter = LogFormatters.json(showEmoji = false)
+    ) { payload ->
+        myHttpClient.post("/logs", payload)
+    }
+)
 ```
 
 ### TestSink
@@ -402,31 +470,34 @@ assertEquals("Test message", testSink.events[0].message)
 
 ## Simple vs Structured Logging
 
-| Feature         | Simple Log API  | Structured Logger API         |
-|-----------------|-----------------|-------------------------------|
-| Setup Required  | ❌ No            | ✅ Yes (LoggerFactory.install) |
-| Attributes      | ❌ No            | ✅ Yes                         |
-| Context         | ❌ No            | ✅ Yes                         |
-| Multiple Sinks  | ❌ No            | ✅ Yes                         |
-| Level Overrides | ❌ No            | ✅ Yes                         |
-| Lazy Evaluation | ❌ No            | ✅ Yes                         |
-| Testing Support | ❌ Limited       | ✅ TestSink                    |
-| Use Case        | Quick debugging | Production logging            |
+Both APIs share the same pipeline. `LoggerFactory.install()` configuration - sinks, level
+filtering, and per-tag overrides - applies to `Log.*` calls as well as `Logger` calls.
 
-**Use Simple Log API when:**
+| Feature                        | Simple `Log` API      | Structured `Logger` API   |
+|--------------------------------|-----------------------|---------------------------|
+| Setup required                 | No (auto-initialized) | No (auto-initialized)     |
+| Respects `LoggerFactory` sinks | ✅ Yes                 | ✅ Yes                     |
+| Respects level overrides       | ✅ Yes                 | ✅ Yes                     |
+| Testable via `TestSink`        | ✅ Yes                 | ✅ Yes                     |
+| Plain string message           | ✅ Yes                 | No (lazy lambda required) |
+| Lazy message evaluation        | ❌ No                  | ✅ Yes                     |
+| Structured attributes          | ❌ No                  | ✅ Yes                     |
+| Set log context                | ❌ No                  | ✅ Via `LogContextHolder`  |
+| Carries active context         | ✅ Yes (thread-local)  | ✅ Yes (thread-local)      |
+
+**Use Simple `Log` API when:**
 
 - Quick debugging during development
-- Simple console output
-- No need for structured data
+- Simple one-liner output with no structured data
 - Prototyping
 
-**Use Structured Logger API when:**
+**Use Structured `Logger` API when:**
 
 - Production applications
+- Lazy evaluation matters (hot paths, expensive message construction)
 - Need structured attributes
-- Want context propagation
-- Multiple output destinations
-- Unit testing logs
+- Want to set log context for a scope
+- Unit testing specific log output
 
 ## Usage Examples
 
@@ -861,7 +932,7 @@ logger.info { "No context" }
 
 ## License
 
-Apache License 2.0 License - See [LICENSE](LICENSE) file for details
+Apache License 2.0 - See [LICENSE](LICENSE) file for details
 
 ## Contributing
 
