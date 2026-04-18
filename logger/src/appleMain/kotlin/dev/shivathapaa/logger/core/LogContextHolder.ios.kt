@@ -26,4 +26,19 @@ actual object LogContextHolder {
             }
         }
     }
+
+    actual suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T {
+        val previous = current()
+        val merged = previous.merge(ctx)
+        NSThread.currentThread.threadDictionary.setObject(merged, forKey = nsKey)
+        try {
+            return block()
+        } finally {
+            if (previous.values.isEmpty()) {
+                NSThread.currentThread.threadDictionary.removeObjectForKey(nsKey)
+            } else {
+                NSThread.currentThread.threadDictionary.setObject(previous, forKey = nsKey)
+            }
+        }
+    }
 }

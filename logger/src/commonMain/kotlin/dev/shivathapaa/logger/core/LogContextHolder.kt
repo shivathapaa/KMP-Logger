@@ -46,4 +46,23 @@ expect object LogContextHolder {
      * @return The value returned by [block].
      */
     fun <T> withContext(ctx: LogContext, block: () -> T): T
+
+    /**
+     * Suspending variant of [withContext] for use in coroutines. Executes [block] with [ctx] merged
+     * into the current context, then restores the previous context regardless
+     * of whether [block] throws or suspends.
+     *
+     * **JVM/Android note:** This implementation uses a `ThreadLocal` to hold
+     * the context. If the coroutine suspends and resumes on a different thread
+     * (e.g. with `Dispatchers.IO`), the context will not propagate to the
+     * resumed thread. Use with single-threaded dispatchers (e.g.
+     * `Dispatchers.Main`) or ensure the coroutine does not migrate threads
+     * across suspension points.
+     *
+     * @param ctx The context to merge into the current context for the
+     *   duration of [block].
+     * @param block The suspending block of code to execute within the merged context.
+     * @return The value returned by [block].
+     */
+    suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T
 }
