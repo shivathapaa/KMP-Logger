@@ -14,4 +14,14 @@ actual object LogContextHolder {
             holder.set(previous)
         }
     }
+
+    actual suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T {
+        val previous = current()
+        holder.set(previous.merge(ctx))
+        try {
+            return block()
+        } finally {
+            holder.set(previous)
+        }
+    }
 }
