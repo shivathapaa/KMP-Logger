@@ -19,6 +19,7 @@ watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 - [Core Concepts](#core-concepts)
 - [Configuration](#configuration)
 - [Log Context](#log-context)
+- [Coroutine Support](#coroutine-support)
 - [Log Formatters](#log-formatters)
 - [Available Sinks](#available-sinks)
 - [Simple vs Structured Logging](#simple-vs-structured-logging)
@@ -39,11 +40,13 @@ watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 - **Structured Logging** - Attach typed key-value attributes to any log event
 - **Context Propagation** - Thread-local context on JVM/Android, `NSThread` dictionary on Apple,
   scoped save/restore everywhere else
+- **Coroutine-Aware Context** - Optional `logger-coroutines` module with `withLogContext` that
+  propagates `LogContext` safely across suspension points and thread hops on all platforms
 - **Lazy Evaluation** - Message lambda is never evaluated when the event would be filtered out
 - **Real Timestamps** - Epoch milliseconds captured on all platforms
 - **Thread Names** - Captured natively on Android, JVM, and Apple; `"main"` elsewhere
-- **Platform-Native Output** - Logcat on Android, `NSLog` on Apple, `console` on JS/Wasm, `stdout`on
-  JVM/Linux/MinGW
+- **Platform-Native Output** - Logcat on Android, `NSLog` on Apple, `console` on JS/Wasm,
+  `stdout` on JVM/Linux/MinGW
 - **Configurable Pipeline** - Per-tag level overrides, multiple sinks, custom formatters
 - **Built-in Formatters** - Default (human-readable), JSON (log aggregators), Compact, and Pretty
 - **Testable** - Built-in `TestSink` for asserting log output in unit tests
@@ -51,26 +54,39 @@ watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 
 ## Installation
 
+### Core library
+
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:1.3.0")
+    implementation("io.github.shivathapaa:logger:1.4.0")
 }
 ```
 
-For Android-only apps:
+### Coroutine support (optional)
+
+Add `logger-coroutines` if you use coroutines and need `LogContext` to survive suspension points
+and thread switches (e.g. `Dispatchers.IO` or `Dispatchers.Default` on JVM/Android):
+
+```kotlin
+// build.gradle.kts (commonMain)
+commonMain.dependencies {
+    implementation("io.github.shivathapaa:logger:1.4.0")
+    implementation("io.github.shivathapaa:logger-coroutines:1.4.0")
+}
+```
+
+For Android-only apps, platform-specific artifacts are also available:
 
 ```kotlin
 // build.gradle.kts (androidMain)
 androidMain.dependencies {
-    implementation("io.github.shivathapaa:logger-android:1.3.0")
+    implementation("io.github.shivathapaa:logger-android:1.4.0")
 }
 ```
 
-For platform-specific artifacts,
-see [Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa).
-
-
+For the full list of platform-specific artifacts, see
+[Maven Central](https://central.sonatype.com/search?q=logger&namespace=io.github.shivathapaa).
 
 ## Simple Log API
 
@@ -278,8 +294,8 @@ val config = LoggerConfig.Builder()
 LoggerFactory.install(config)
 
 val networkLogger = LoggerFactory.get("NetworkModule") // uses DEBUG
-val sdkLogger = LoggerFactory.get("ThirdPartySDK") // uses ERROR
-val appLogger = LoggerFactory.get("MyApp")         // uses INFO (default)
+val sdkLogger = LoggerFactory.get("ThirdPartySDK")     // uses ERROR
+val appLogger = LoggerFactory.get("MyApp")             // uses INFO (default)
 ```
 
 ### Multiple Sinks
@@ -351,6 +367,125 @@ val result = LogContextHolder.withContext(context) {
 }
 ```
 
+## Coroutine Support
+
+KMP Logger ships with an optional `logger-coroutines` module that provides safe `LogContext`
+propagation across suspension points on all platforms.
+
+### The Problem
+
+`LogContextHolder.withContext` is synchronous. On JVM/Android, context is stored in a
+`ThreadLocal`. When a coroutine suspends and resumes on a different thread (e.g. with
+`Dispatchers.IO`), the `ThreadLocal` on the new thread is empty - the context is lost.
+
+### Solution: `withLogContext`
+
+The `logger-coroutines` module provides `withLogContext`, which solves this correctly on every
+platform:
+
+```kotlin
+import dev.shivathapaa.logger.coroutines.withLogContext
+
+suspend fun handleRequest(requestId: String) {
+    val ctx = LogContext(mapOf("requestId" to requestId))
+
+    withLogContext(ctx) {
+        logger.info { "Starting request" }
+
+        withContext(Dispatchers.IO) {       // thread hop - context still present
+            delay(100)                      // suspension - context still present
+            logger.debug { "Fetching data" }
+        }
+
+        logger.info { "Request complete" }
+    }
+}
+```
+
+### How It Works
+
+| Platform                    | Mechanism                                                                                                                                                                 |
+|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| JVM / Android               | `LogContextElement` implements `ThreadContextElement`. The coroutines dispatcher calls `updateThreadContext`/`restoreThreadContext` on every thread switch automatically. |
+| iOS / macOS / Apple         | Single-threaded. Context is set directly on `LogContextHolder` for the duration of the block and restored in `finally`.                                                   |
+| JS / WasmJS / Linux / MinGW | Single-threaded. Same approach as Apple.                                                                                                                                  |
+
+### Nesting and Merging
+
+`withLogContext` calls nest and merge just like `withContext`. Inner values override outer values
+for the same key:
+
+```kotlin
+withLogContext(LogContext(mapOf("traceId" to "trace-123"))) {
+    logger.info { "Outer" }  // traceId=trace-123
+
+    withLogContext(LogContext(mapOf("spanId" to "span-456"))) {
+        logger.info { "Inner" }  // traceId=trace-123, spanId=span-456
+    }
+
+    logger.info { "Back to outer" }  // traceId=trace-123
+}
+```
+
+### Attaching Context to a CoroutineScope
+
+To attach a fixed context to an entire scope, add `LogContextElement` directly to the scope's
+coroutine context:
+
+```kotlin
+import dev.shivathapaa.logger.coroutines.LogContextElement
+
+val scope = CoroutineScope(
+    Dispatchers.IO + LogContextElement(LogContext(mapOf("service" to "payment-api")))
+)
+
+scope.launch {
+    logger.info { "All coroutines in this scope carry service=payment-api" }
+}
+```
+
+### Accessing the Active Element
+
+Inside a `withLogContext` block you can read the current `LogContextElement` from the coroutine
+context:
+
+```kotlin
+withLogContext(LogContext(mapOf("requestId" to "req-1"))) {
+    val element = currentCoroutineContext()[LogContextElement]
+    println(element?.context)  // LogContext(values={requestId=req-1})
+}
+```
+
+### `withSuspendingContext` (core, limited)
+
+The core `logger` module also exposes `LogContextHolder.withSuspendingContext`. It accepts a
+suspending block but does **not** solve the thread-migration problem on JVM/Android - context is
+stored in a `ThreadLocal` and will be lost if the coroutine resumes on a different thread.
+
+Use `withSuspendingContext` only when:
+
+- The coroutine is pinned to a single thread (e.g. `Dispatchers.Main`), **or**
+- No thread-migration occurs in the block.
+
+For all other cases, use `withLogContext` from `logger-coroutines`.
+
+```kotlin
+// Safe on single-threaded dispatchers (Main, iOS, JS, etc.)
+LogContextHolder.withSuspendingContext(ctx) {
+    delay(100)
+    logger.info { "Context is present" }
+}
+```
+
+### Which API to Use
+
+| Scenario                                              | API                                          |
+|-------------------------------------------------------|----------------------------------------------|
+| Non-coroutine code                                    | `LogContextHolder.withContext`               |
+| Coroutine, single-threaded dispatcher only (Main, JS) | `LogContextHolder.withSuspendingContext`     |
+| Coroutine, any dispatcher / thread hops (IO, Default) | `withLogContext` from `logger-coroutines`    |
+| Fixed context on a whole scope                        | `LogContextElement` from `logger-coroutines` |
+
 ## Log Formatters
 
 Formatters convert a `LogEvent` into a string. Pass one to a sink. All built-in formatters
@@ -398,7 +533,7 @@ RemoteLogSink(
 ) { payload -> myApi.send(payload) }
 ```
 
-When `showEmoji = true`, the emoji is added as a `"levelEmoji"` field **inside** the JSON object —
+When `showEmoji = true`, the emoji is added as a `"levelEmoji"` field **inside** the JSON object -
 not prepended before it - so the output is always valid JSON:
 
 ```json
@@ -553,6 +688,25 @@ logger.info(
 ) { "Order created successfully" }
 ```
 
+### Coroutine Request Pipeline
+
+```kotlin
+suspend fun processOrder(orderId: String, userId: Int) {
+    val ctx = LogContext(mapOf("orderId" to orderId, "userId" to userId))
+
+    withLogContext(ctx) {
+        logger.info { "Processing order" }
+
+        val payment = withContext(Dispatchers.IO) {
+            logger.debug { "Charging payment" }  // context present on IO thread
+            chargePayment(orderId)
+        }
+
+        logger.info(attrs = { attr("paymentId", payment.id) }) { "Order complete" }
+    }
+}
+```
+
 ## Testing
 
 ### Unit Testing with TestSink
@@ -603,6 +757,29 @@ fun propagatesContextToNestedLogs() {
         assertEquals("req-123", event.context.values["requestId"])
     }
 }
+```
+
+### Testing Coroutine Context Propagation
+
+```kotlin
+@Test
+fun coroutineContextSurvivesSuspension() = runTest {
+        val testSink = TestSink()
+        LoggerFactory.install(
+            LoggerConfig.Builder()
+                .minLevel(LogLevel.DEBUG)
+                .addSink(testSink)
+                .build()
+        )
+        val logger = LoggerFactory.get("CoroutineTest")
+
+        withLogContext(LogContext(mapOf("requestId" to "req-123"))) {
+            delay(10)
+            logger.info { "After delay" }
+        }
+
+        assertEquals("req-123", testSink.events[0].context.values["requestId"])
+    }
 ```
 
 ## Advanced Topics
@@ -828,7 +1005,21 @@ logger.info(attrs = { attr("requestId", requestId) }) { "Starting request" }
 logger.info(attrs = { attr("requestId", requestId) }) { "Request completed" }
 ```
 
-### 5. Never Log Sensitive Information
+### 5. Use `withLogContext` in Coroutines
+
+```kotlin
+// Good - safe across thread hops and suspension
+withLogContext(LogContext(mapOf("requestId" to requestId))) {
+    withContext(Dispatchers.IO) { fetchData() }
+}
+
+// Risky on JVM/Android - context lost after thread switch
+LogContextHolder.withContext(LogContext(mapOf("requestId" to requestId))) {
+    withContext(Dispatchers.IO) { fetchData() } // context may be missing here
+}
+```
+
+### 6. Never Log Sensitive Information
 
 ```kotlin
 // Good
@@ -879,6 +1070,24 @@ LogContextHolder.withContext(context) {
 // Wrong - context object exists but is never applied
 val context = LogContext(mapOf("key" to "value"))
 logger.info { "No context" }
+```
+
+### Context Lost After Suspension (JVM/Android)
+
+If your context disappears after `delay()` or a thread switch on JVM/Android, you are using the
+synchronous `LogContextHolder.withContext` inside a coroutine. Switch to `withLogContext` from the
+`logger-coroutines` module:
+
+```kotlin
+// Before (context lost after thread switch on JVM/Android)
+LogContextHolder.withContext(ctx) {
+    withContext(Dispatchers.IO) { ... }
+}
+
+// After (context always present)
+withLogContext(ctx) {
+    withContext(Dispatchers.IO) { ... }
+}
 ```
 
 ## Contributing
