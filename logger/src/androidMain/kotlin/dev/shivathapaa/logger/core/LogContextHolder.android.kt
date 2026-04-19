@@ -24,4 +24,9 @@ actual object LogContextHolder {
             holder.set(previous)
         }
     }
+
+    @InternalLoggerApi
+    actual fun setContext(ctx: LogContext) {
+        if (ctx.values.isEmpty()) holder.remove() else holder.set(ctx)
+    }
 }

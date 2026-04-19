@@ -52,12 +52,22 @@ expect object LogContextHolder {
      * into the current context, then restores the previous context regardless
      * of whether [block] throws or suspends.
      *
-     * **JVM/Android note:** This implementation uses a `ThreadLocal` to hold
+     * **Thread-safety warning (JVM/Android):** This implementation uses a `ThreadLocal` to hold
      * the context. If the coroutine suspends and resumes on a different thread
-     * (e.g. with `Dispatchers.IO`), the context will not propagate to the
-     * resumed thread. Use with single-threaded dispatchers (e.g.
-     * `Dispatchers.Main`) or ensure the coroutine does not migrate threads
-     * across suspension points.
+     * (e.g. with `Dispatchers.IO` or `Dispatchers.Default`), the restored context
+     * will not be visible on the new thread. Concurrent coroutines that yield and
+     * interleave on the same dispatcher can also observe each other's context.
+     *
+     * For correct context propagation across suspension points and thread hops,
+     * prefer [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext]
+     * from the `logger-coroutines` module, which uses
+     * [LogContextElement][dev.shivathapaa.logger.coroutines.LogContextElement]
+     * (a `ThreadContextElement` on JVM/Android) to install and restore the context
+     * automatically on every thread the coroutine resumes on.
+     *
+     * This function is safe to use when:
+     * - The coroutine always resumes on the same thread (e.g. `Dispatchers.Main`), or
+     * - No other coroutines run concurrently on the same dispatcher.
      *
      * @param ctx The context to merge into the current context for the
      *   duration of [block].
@@ -65,4 +75,26 @@ expect object LogContextHolder {
      * @return The value returned by [block].
      */
     suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T
+
+    /**
+     * Directly sets the active [LogContext] for the current thread or execution scope,
+     * replacing any previously installed context without merging.
+     *
+     * Passing an empty [LogContext] clears the active context entirely (equivalent
+     * to removing it from the current scope).
+     *
+     * **This is an internal API** used exclusively by the `logger-coroutines` module:
+     * - On **JVM/Android**: called by
+     *   [LogContextElement][dev.shivathapaa.logger.coroutines.LogContextElement]'s
+     *   `ThreadContextElement.updateThreadContext` and `restoreThreadContext` hooks,
+     *   which the coroutine dispatcher invokes automatically on each thread switch.
+     * - On **all other platforms**: called directly by
+     *   [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext] to install
+     *   and restore the context around the coroutine block.
+     *
+     * Do not call this from application code. Use [withContext] or
+     * [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext] instead.
+     */
+    @InternalLoggerApi
+    fun setContext(ctx: LogContext)
 }

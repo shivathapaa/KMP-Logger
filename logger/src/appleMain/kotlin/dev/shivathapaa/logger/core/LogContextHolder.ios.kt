@@ -41,4 +41,13 @@ actual object LogContextHolder {
             }
         }
     }
+
+    @InternalLoggerApi
+    actual fun setContext(ctx: LogContext) {
+        if (ctx.values.isEmpty()) {
+            NSThread.currentThread.threadDictionary.removeObjectForKey(nsKey)
+        } else {
+            NSThread.currentThread.threadDictionary.setObject(ctx, forKey = nsKey)
+        }
+    }
 }
