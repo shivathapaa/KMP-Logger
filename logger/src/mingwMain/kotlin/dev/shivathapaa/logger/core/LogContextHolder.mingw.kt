@@ -24,4 +24,9 @@ actual object LogContextHolder {
             current = previous
         }
     }
+
+    @InternalLoggerApi
+    actual fun setContext(ctx: LogContext) {
+        current = ctx
+    }
 }
