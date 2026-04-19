@@ -17,6 +17,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":logger"))
+            implementation(project(":logger-coroutines"))
+            implementation(libs.kotlinx.coroutines.core)
         }
     }
 }
