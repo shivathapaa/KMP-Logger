@@ -38,6 +38,7 @@ kotlin {
             implementation(libs.foundation)
             implementation(libs.material3)
             implementation(project(":logger"))
+            implementation(project(":logger-coroutines"))
 //            implementation(libs.logger)
         }
         jvmMain.dependencies {

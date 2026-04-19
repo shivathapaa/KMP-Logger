@@ -16,9 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+enum class SampleScreen { SIMPLE, STRUCTURED, COROUTINE }
+
 @Composable
 fun App() {
-    val isSimpleApiLoggerSampleVisible = rememberSaveable { mutableStateOf(true) }
+    val screen = rememberSaveable { mutableStateOf(SampleScreen.SIMPLE) }
 
     Scaffold { paddingValues ->
         Column(
@@ -30,24 +32,27 @@ fun App() {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     .animateContentSize(),
                 onClick = {
-                    isSimpleApiLoggerSampleVisible.value = !isSimpleApiLoggerSampleVisible.value
+                    screen.value = when (screen.value) {
+                        SampleScreen.SIMPLE -> SampleScreen.STRUCTURED
+                        SampleScreen.STRUCTURED -> SampleScreen.COROUTINE
+                        SampleScreen.COROUTINE -> SampleScreen.SIMPLE
+                    }
                 },
                 shape = MaterialTheme.shapes.small
             ) {
-                val buttonText = if (isSimpleApiLoggerSampleVisible.value) {
-                    "Checkout structured api samples"
-                } else {
-                    "Checkout simple api samples"
+                val buttonText = when (screen.value) {
+                    SampleScreen.SIMPLE -> "Switch to Structured API"
+                    SampleScreen.STRUCTURED -> "Switch to Coroutine API"
+                    SampleScreen.COROUTINE -> "Switch to Simple API"
                 }
                 Text(buttonText, modifier = Modifier.animateContentSize())
             }
 
-            AnimatedContent(
-                targetState = isSimpleApiLoggerSampleVisible.value
-            ) { isSimpleVisible ->
-                when (isSimpleVisible) {
-                    true -> SimpleLogSample()
-                    false -> StructuredLogApiSample()
+            AnimatedContent(targetState = screen.value) { current ->
+                when (current) {
+                    SampleScreen.SIMPLE -> SimpleLogSample()
+                    SampleScreen.STRUCTURED -> StructuredLogApiSample()
+                    SampleScreen.COROUTINE -> CoroutineLogApiSample()
                 }
             }
         }
