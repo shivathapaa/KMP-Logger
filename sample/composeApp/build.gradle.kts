@@ -1,8 +1,10 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.composeMultiplatform)
 }
@@ -43,6 +45,16 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+        }
+
+        androidLibrary {
+            namespace = "sample.app.compose"
+            compileSdk = libs.versions.android.compileSdk.get().toInt()
+            minSdk = libs.versions.android.minSdk.get().toInt()
+
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_11)
+            }
         }
     }
 }
