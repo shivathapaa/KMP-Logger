@@ -1,25 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests - Skip Browser" type="GradleRunConfiguration" factoryName="Gradle">
-    <ExternalSystemSettings>
-      <option name="executionName" />
-      <option name="externalProjectPath" value="$PROJECT_DIR$" />
-      <option name="externalSystemIdString" value="GRADLE" />
-      <option name="scriptParameters" value="--continue -x jsBrowserTest -x wasmJsBrowserTest" />
-      <option name="taskDescriptions">
-        <list />
-      </option>
-      <option name="taskNames">
-        <list>
-          <option value=":logger:allTests" />
-        </list>
-      </option>
-      <option name="vmOptions" />
-    </ExternalSystemSettings>
-    <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
-    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-    <DebugAllEnabled>false</DebugAllEnabled>
-    <ForceTestExec>true</ForceTestExec>
-    <method v="2" />
-  </configuration>
+    <configuration name="All Tests - Skip Browser" default="false" factoryName="Gradle"
+        type="GradleRunConfiguration">
+        <ExternalSystemSettings>
+            <option name="executionName" />
+            <option name="externalProjectPath" value="$PROJECT_DIR$" />
+            <option name="externalSystemIdString" value="GRADLE" />
+            <option name="scriptParameters"
+                value="--continue -x jsBrowserTest -x wasmJsBrowserTest" />
+            <option name="taskDescriptions">
+                <list />
+            </option>
+            <option name="taskNames">
+                <list>
+                    <option value=":logger:allTests" />
+                    <option value=":logger-coroutines:allTests" />
+                </list>
+            </option>
+            <option name="vmOptions" />
+        </ExternalSystemSettings>
+        <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+        <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+        <DebugAllEnabled>false</DebugAllEnabled>
+        <ForceTestExec>true</ForceTestExec>
+        <method v="2" />
+    </configuration>
 </component>
