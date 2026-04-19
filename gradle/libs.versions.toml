@@ -12,7 +12,11 @@ androidx-activityCompose = "1.13.0"
 material3 = "1.9.0"
 
 [libraries]
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+vanniktech-publish = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "maven-publish" }
 androidx-activityCompose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "foundation" }
 material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }

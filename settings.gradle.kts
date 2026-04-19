@@ -1,6 +1,7 @@
 rootProject.name = "KMP-Logger"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google()
         mavenCentral()
@@ -16,6 +17,8 @@ dependencyResolutionManagement {
 }
 
 include(":logger")
+include(":logger-coroutines")
+
 include(":sample:androidApp")
 include(":sample:composeApp")
 include(":sample:terminalApp")
