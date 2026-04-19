@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: Run tests
+    name: Run all tests
     runs-on: macos-latest
     steps:
       - name: Check out code
@@ -27,7 +27,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Run all tests
-        run: ./gradlew allTests --continue -x jsBrowserTest -x wasmJsBrowserTest -x kotlinWasmStoreYarnLock
+        run: ./gradlew :logger:allTests :logger-coroutines:allTests --continue -x jsBrowserTest -x wasmJsBrowserTest -x kotlinWasmStoreYarnLock
 
   publish:
     name: Release build and publish
@@ -48,17 +48,21 @@ jobs:
 
       - name: Validate version matches release tag
         run: |
-          VERSION=$(grep '^version = ' logger/build.gradle.kts | sed 's/version = "//;s/"//')
+          VERSION=$(grep '^kmplogger.version=' gradle.properties | cut -d'=' -f2)
           TAG="${{ github.event.release.tag_name }}"
           TAG="${TAG#v}"
           if [ "$VERSION" != "$TAG" ]; then
-            echo "Version mismatch: build.gradle.kts has '$VERSION' but release tag is '$TAG'"
+            echo "Version mismatch: gradle.properties has '$VERSION' but release tag is '$TAG'"
             exit 1
           fi
           echo "Version check passed: $VERSION"
 
-      - name: Publish to MavenCentral
-        run: ./gradlew publishToMavenCentral --no-configuration-cache
+      - name: Publish to Maven Central
+        run: >
+          ./gradlew
+          :logger:publishAndReleaseToMavenCentral
+          :logger-coroutines:publishAndReleaseToMavenCentral
+          --no-configuration-cache
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
