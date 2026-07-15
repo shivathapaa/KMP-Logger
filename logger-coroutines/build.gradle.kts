@@ -9,7 +9,7 @@ kotlin {
             implementation(project(":logger"))
             implementation(libs.kotlinx.coroutines.core)
         }
-        androidLibrary {
+        android {
             namespace = "io.github.shivathapaa.logger.coroutines"
         }
     }

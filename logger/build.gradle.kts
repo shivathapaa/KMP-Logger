@@ -5,7 +5,7 @@ plugins {
 
 kotlin {
     sourceSets {
-        androidLibrary {
+        android {
             namespace = "io.github.shivathapaa.logger"
         }
     }

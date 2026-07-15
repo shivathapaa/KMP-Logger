@@ -23,7 +23,6 @@ kotlin {
         binaries.executable()
     }
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach {
@@ -47,7 +46,7 @@ kotlin {
             implementation(compose.desktop.currentOs)
         }
 
-        androidLibrary {
+        android {
             namespace = "sample.app.compose"
             compileSdk = libs.versions.android.compileSdk.get().toInt()
             minSdk = libs.versions.android.minSdk.get().toInt()
