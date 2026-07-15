@@ -23,10 +23,8 @@ internal class PrettyLogFormatter(
     override fun format(event: LogEvent): String = buildString {
 
         if (includeTimestamp) {
-            event.timestamp?.let {
-                append(timeFormatter(it))
-                append(" ")
-            }
+            append(timeFormatter(event.timestamp))
+            append(" ")
         }
 
         val emoji = if (showEmoji) "${event.level.emoji} " else ""
