@@ -16,11 +16,12 @@ kotlin {
             implementation(libs.findLibrary("kotlinx-coroutines-test").get())
         }
 
-        androidLibrary {
+        android {
             compileSdk = libs.findVersion("android-compileSdk").get().requiredVersion.toInt()
             minSdk = libs.findVersion("android-minSdk").get().requiredVersion.toInt()
 
             withJava()
+            withHostTest {}
 
             compilerOptions {
                 jvmTarget.set(JvmTarget.JVM_11)
@@ -80,10 +81,8 @@ kotlin {
         binaries.library()
     }
 
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
-    macosX64()
     macosArm64()
     linuxX64()
     mingwX64()
