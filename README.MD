@@ -2,13 +2,13 @@
 
 <p align="center">
   <a href="https://central.sonatype.com/artifact/io.github.shivathapaa/logger"><img src="https://img.shields.io/maven-central/v/io.github.shivathapaa/logger?label=Maven%20Central&color=blue" alt="Maven Central"/></a>
-  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.1+-7F52FF.svg?logo=kotlin&logoColor=white" alt="Kotlin"/></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4+-7F52FF.svg?logo=kotlin&logoColor=white" alt="Kotlin"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"/></a>
   <a href="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml"><img src="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
 </p>
 
 A lightweight, structured logging library for Kotlin Multiplatform. Supports Android, iOS, macOS,
-watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
+JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 
 ## Table of Contents
 
@@ -27,6 +27,7 @@ watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 - [Testing](#testing)
 - [Advanced Topics](#advanced-topics)
 - [Platform-Specific Setup](#platform-specific-setup)
+- [Real-World Patterns](#real-world-patterns)
 - [Best Practices](#best-practices)
 - [Performance Considerations](#performance-considerations)
 - [Troubleshooting](#troubleshooting)
@@ -59,7 +60,7 @@ watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:1.4.0")
+    implementation("io.github.shivathapaa:logger:1.5.0")
 }
 ```
 
@@ -71,8 +72,8 @@ and thread switches (e.g. `Dispatchers.IO` or `Dispatchers.Default` on JVM/Andro
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:1.4.0")
-    implementation("io.github.shivathapaa:logger-coroutines:1.4.0")
+    implementation("io.github.shivathapaa:logger:1.5.0")
+    implementation("io.github.shivathapaa:logger-coroutines:1.5.0")
 }
 ```
 
@@ -81,7 +82,7 @@ For Android-only apps, platform-specific artifacts are also available:
 ```kotlin
 // build.gradle.kts (androidMain)
 androidMain.dependencies {
-    implementation("io.github.shivathapaa:logger-android:1.4.0")
+    implementation("io.github.shivathapaa:logger-android:1.5.0")
 }
 ```
 
@@ -801,50 +802,111 @@ class FileSink(private val filename: String) : LogSink {
 }
 ```
 
-### Firebase Logging Sink
+### Multiplatform Crashlytics Sink (`expect`/`actual`)
+
+A production sink that reports to Firebase Crashlytics on **both** Android and iOS. This is the
+canonical way to write a platform-specific sink in KMP: **one `expect` factory, one `actual` per
+target**, each talking to that platform's native Crashlytics SDK. (A target that doesn't ship
+Firebase can opt out by returning `null` - shown at the end.)
 
 ```kotlin
-class FirebaseLogSink(
-    private val minLevel: LogLevel = LogLevel.WARN,
-    private val formatter: LogEventFormatter = LogFormatters.json(false),
-    private val crashlytics: FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
-) : LogSink {
-
-    override fun emit(event: LogEvent) {
-        if (event.level < minLevel) return
-
-        attachContext(event)
-
-        val message = formatter.format(event)
-
-        when (event.level) {
-            LogLevel.ERROR,
-            LogLevel.FATAL -> {
-                val throwable = event.throwable ?: LoggedException(message)
-                crashlytics.recordException(throwable)
-            }
-            else -> crashlytics.log(message)
-        }
-    }
-
-    private fun attachContext(event: LogEvent) {
-        event.context.values.forEach { (key, value) ->
-            crashlytics.setCustomKey(
-                key.take(40),
-                value?.toString()?.take(100) ?: "null"
-            )
-        }
-    }
-
-    private class LoggedException(message: String) : RuntimeException(message)
-}
-// Provide a no-op implementation for non-Android targets
+// commonMain
+internal expect fun crashlyticsSink(): LogSink?
 ```
+
+```kotlin
+// androidMain
+internal class CrashlyticsLogSink : LogSink {
+    override fun emit(event: LogEvent) {
+        if (event.level.ordinal < LogLevel.WARN.ordinal) return           // WARN+ only
+        try {
+            val crashlytics = FirebaseCrashlytics.getInstance()
+            val msg = event.message ?: ""
+            crashlytics.log("[${event.level}] ${event.loggerName}: $msg")  // breadcrumb
+
+            val throwable = event.throwable
+            if (throwable != null &&
+                event.level.ordinal >= LogLevel.ERROR.ordinal &&
+                !throwable.isTransportFailure()                            // skip offline/timeout noise
+            ) {
+                crashlytics.setCustomKey("logger.tag", event.loggerName)
+                crashlytics.setCustomKey("logger.level", event.level.name)
+                event.attributes.forEach { (k, v) -> crashlytics.setCustomKey("attr.$k", v?.toString() ?: "null") }
+                event.context.values.forEach { (k, v) -> crashlytics.setCustomKey("ctx.$k", v?.toString() ?: "null") }
+                crashlytics.recordException(throwable)                     // non-fatal
+            }
+        } catch (_: Throwable) {
+            // Crashlytics not initialized yet - a sink must never throw.
+        }
+    }
+
+    // Don't report expected offline/timeout IOExceptions as crashes.
+    private fun Throwable.isTransportFailure(): Boolean = this is IOException
+}
+
+internal actual fun crashlyticsSink(): LogSink? = CrashlyticsLogSink()
+```
+
+On iOS the same contract is fulfilled against the **Firebase iOS SDK** (assumed already set up in your
+project). Kotlin/Native `Throwable`s aren't `NSError`s, so an `ERROR` is recorded by wrapping it in an
+`FIRExceptionModel`:
+
+```kotlin
+// iosMain
+internal class CrashlyticsLogSink : LogSink {
+    override fun emit(event: LogEvent) {
+        if (event.level.ordinal < LogLevel.WARN.ordinal) return           // WARN+ only
+        val crashlytics = FIRCrashlytics.crashlytics()
+        val msg = event.message ?: ""
+        crashlytics.log("[${event.level}] ${event.loggerName}: $msg")     // breadcrumb
+
+        val throwable = event.throwable
+        if (throwable != null && event.level.ordinal >= LogLevel.ERROR.ordinal) {
+            // (apply the same transport-failure filter as Android to skip expected offline errors -
+            //  on Apple that's a Ktor/Darwin error type, not IOException)
+            crashlytics.setCustomValue(event.loggerName, forKey = "logger.tag")
+            crashlytics.setCustomValue(event.level.name, forKey = "logger.level")
+            event.attributes.forEach { (k, v) -> crashlytics.setCustomValue(v?.toString() ?: "null", forKey = "attr.$k") }
+            event.context.values.forEach { (k, v) -> crashlytics.setCustomValue(v?.toString() ?: "null", forKey = "ctx.$k") }
+
+            val model = FIRExceptionModel.exceptionModelWithName(
+                name = throwable::class.qualifiedName ?: "KotlinException",
+                reason = throwable.message ?: msg
+            )
+            model.setStackTrace(throwable.getStackTrace().map { FIRStackFrame.stackFrameWithSymbol(it) })
+            crashlytics.recordExceptionModel(model)                       // non-fatal
+        }
+    }
+}
+
+internal actual fun crashlyticsSink(): LogSink? = CrashlyticsLogSink()
+```
+
+**Opting a platform out.** If a target doesn't ship Firebase, return `null` there. `DefaultLogSink`
+still routes that platform's logs to its native channel (`NSLog` on Apple, `console` on JS/Wasm,
+`stdout` on JVM/Linux/MinGW), so nothing is lost - you simply forgo crash-reporting on that target.
+The `expect`/`actual` split is exactly what lets one target integrate Crashlytics while another opts
+out:
+
+```kotlin
+// iosMain - opt out: no Firebase on this target
+internal actual fun crashlyticsSink(): LogSink? = null
+```
+
+Key ideas (both platforms): gate breadcrumbs to `WARN+` and non-fatal exception recording to
+`ERROR+` **with a throwable**; promote structured `attributes` -> `attr.*` and `context.values` ->
+`ctx.*` custom keys so they land on the Crashlytics issue; keep a sink from ever throwing (the
+Android actual wraps `getInstance()` in `try/catch` for the pre-init window); and use
+`expect`/`actual` to integrate - or deliberately opt out - per target.
 
 ### Facebook Logging Sink
 
+`FacebookLogSink` is **Android-only** - it uses `android.os.Bundle` and `AppEventsLogger` - so it
+lives in `androidMain`:
+
 ```kotlin
-class FacebookLogSink(
+// androidMain
+internal class FacebookLogSink(
     private val minLevel: LogLevel = LogLevel.INFO,
     private val appEventsLogger: AppEventsLogger
 ) : LogSink {
@@ -864,7 +926,7 @@ class FacebookLogSink(
             putString("logger", event.loggerName)
             putString("level", event.level.name)
             putString("thread", event.thread)
-            putString("message", event.message.take(100))
+            putString("message", event.message?.take(100))   // message is nullable
 
             event.attributes.forEach { (k, v) ->
                 putString("attr_${k.safeKey()}", v?.toString()?.take(100))
@@ -884,23 +946,83 @@ class FacebookLogSink(
     private fun String.safeKey(): String =
         lowercase().replace("[^a-z0-9_]".toRegex(), "_").take(40)
 }
-// Provide a no-op implementation for non-Android targets
 ```
 
-### Filtering Sensitive Data
+Register it through the same `expect`/`actual` sink-factory hook used for Crashlytics - the Android
+`actual` builds it from an `AppEventsLogger` (which needs a `Context`), and every non-Android target
+returns `null`:
+
+```kotlin
+// commonMain
+internal expect fun facebookSink(): LogSink?
+
+// androidMain - construct from your app's AppEventsLogger
+internal actual fun facebookSink(): LogSink? =
+    FacebookLogSink(appEventsLogger = AppEventsLogger.newLogger(appContext))
+
+// iosMain / jsMain / … - no Facebook SDK on these targets
+internal actual fun facebookSink(): LogSink? = null
+```
+
+Then add it in your installer just like the Crashlytics sink: `facebookSink()?.let { builder.addSink(it) }`.
+
+### Redacting Sensitive Data (decorator sink)
+
+Wrap another sink to scrub secrets out of the `message`, `attributes`, **and** `context` before they
+reach a remote destination (Crashlytics, a log aggregator, etc.). It delegates to an inner sink after
+sanitizing, so you compose it around any other sink - e.g. `SanitizingSink(crashlyticsSink())`.
 
 ```kotlin
 class SanitizingSink(private val delegate: LogSink) : LogSink {
-    private val sensitiveKeys = setOf("password", "apiKey", "token")
 
     override fun emit(event: LogEvent) {
-        val sanitized = event.attributes.mapValues { (key, value) ->
-            if (key in sensitiveKeys) "***REDACTED***" else value
+        val message = event.message?.let(::scrub)
+        val attrs = if (event.attributes.isNotEmpty())
+            event.attributes.mapValues { (k, v) -> scrubAttr(k, v) } else event.attributes
+        val context = if (event.context.values.isNotEmpty())
+            event.context.copy(values = event.context.values.mapValues { (k, v) -> scrubAttr(k, v) })
+        else event.context
+
+        // Nothing sensitive -> forward the original event untouched.
+        if (message === event.message && attrs === event.attributes && context === event.context) {
+            delegate.emit(event); return
         }
-        delegate.emit(event.copy(attributes = sanitized))
+        delegate.emit(event.copy(message = message, attributes = attrs, context = context))
+    }
+
+    override fun flush() = delegate.flush()
+
+    private fun scrubAttr(key: String, value: Any?): Any? {
+        val lowered = key.lowercase()
+        return when {
+            SENSITIVE_KEYS.any { lowered.contains(it) } -> REDACTED
+            value is String -> scrub(value)
+            else -> value
+        }
+    }
+
+    private fun scrub(input: String): String =
+        input.replace(JWT_PATTERN, REDACTED)
+            .replace(BEARER_PATTERN, "Bearer $REDACTED")
+            .replace(NAMED_VALUE_PATTERN) { "${it.groupValues[1]}=$REDACTED" }
+
+    private companion object {
+        const val REDACTED = "***REDACTED***"
+        val SENSITIVE_KEYS = setOf(
+            "password", "passcode", "pin", "secret", "token",
+            "accesstoken", "refreshtoken", "authorization", "otp", "apikey", "api_key"
+        )
+        val JWT_PATTERN = Regex("""\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b""")
+        val BEARER_PATTERN = Regex("""Bearer\s+[A-Za-z0-9._-]+""", RegexOption.IGNORE_CASE)
+        val NAMED_VALUE_PATTERN = Regex(
+            """(?i)\b(password|passcode|pin|secret|token|access_?token|refresh_?token|authorization|otp|api_?key)\s*=\s*[^\s,;&]+"""
+        )
     }
 }
 ```
+
+It matches sensitive **keys** by substring (so `accessToken`, `X-Api-Key` are caught) and scrubs
+sensitive **values** in free-text messages via the JWT, `Bearer …`, and `name=value` patterns.
 
 ## Platform-Specific Setup
 
@@ -948,6 +1070,166 @@ fun main() {
     // your application code
 }
 ```
+
+## Real-World Patterns
+
+These patterns are distilled from a production Kotlin Multiplatform app that uses KMP Logger across
+its networking, caching, analytics, and feature modules. They combine the pieces above -
+`LoggerConfig`, custom sinks, per-tag overrides, and coroutine context - into a working setup.
+
+### One install entry point
+
+Centralize configuration in a single installer, called once at startup **before any `Log.*` call and
+before your DI container** (code logs during DI setup itself, so the logger must be a process-global,
+not a DI singleton):
+
+```kotlin
+object LoggerInitializer {
+    fun install(isDebug: Boolean) {
+        Log.setDefaultTag("MyApp")
+
+        val builder = LoggerConfig.Builder()
+            .minLevel(if (isDebug) LogLevel.VERBOSE else LogLevel.INFO)
+            .addSink(DefaultLogSink())                         // Logcat / NSLog / stdout / console
+
+        if (isDebug) {
+            builder.addSink(
+                ConsoleSink(
+                    LogFormatters.pretty(
+                        showEmoji = true, includeTimestamp = true,
+                        includeThread = true, prettyPrint = true
+                    )
+                )
+            )
+        }
+
+        // Crashlytics wrapped in the sanitizer so secrets never reach Firebase.
+        crashlyticsSink()?.let { builder.addSink(SanitizingSink(it)) }
+
+        if (!isDebug) {                                        // Quiet chatty modules in release
+            builder.override("Network", LogLevel.WARN)
+                .override("WebSocket", LogLevel.WARN)
+                .override("Ktor", LogLevel.WARN)
+        }
+
+        LoggerFactory.install(builder.build())
+    }
+}
+```
+
+Wire it as the very first thing on each platform entry point:
+
+```kotlin
+// Android - Application.onCreate()
+FirebaseApp.initializeApp(this)
+LoggerInitializer.install(isDebug = BuildConfig.DEBUG)   // BEFORE startKoin / any Log usage
+startKoin { /* ... */ }
+```
+
+```kotlin
+// iOS - bootstrap, once per process
+LoggerInitializer.install(isDebug = isDebugBuild())
+startKoin { /* ... */ }
+```
+
+### Analytics integration
+
+Route analytics through the same log pipeline in debug so you can see events without shipping them,
+and swap in the real SDK for release via DI:
+
+```kotlin
+class StubAnalyticsHelper : AnalyticsHelper {                 // debug: log only, never hits Firebase
+    override fun logEvent(event: AnalyticsEvent) {
+        val params = event.params.joinToString(", ") { "${it.key}=${it.value}" }
+        Log.d("event '${event.type}' { $params }", tag = "Analytics")
+    }
+    override fun setUserId(userId: String?) =
+        Log.d("setUserId(${userId ?: "null"})", tag = "Analytics")
+    override fun setUserProperty(name: String, value: String?) =
+        Log.d("userProperty $name=${value ?: "null"}", tag = "Analytics")
+}
+
+// DI: pick implementation by build type
+single<AnalyticsHelper> { if (isDebugBuild()) StubAnalyticsHelper() else FirebaseAnalyticsHelper() }
+```
+
+Because it shares the pipeline, the release `minLevel` (or a `.override("Analytics", LogLevel.WARN)`)
+silences analytics tracing in production with no extra flag.
+
+### Request-scoped context for HTTP
+
+Attach the call's identity once with `withLogContext`, and every nested log line - plus the `ctx.*`
+keys on any crash report - carries it automatically:
+
+```kotlin
+suspend fun <T> handle(response: HttpResponse): T =
+    withLogContext(
+        LogContext(values = mapOf(
+            "http.method" to response.request.method.value,
+            "http.url"    to response.request.url.toString(),
+            "http.status" to response.status.value,
+        ))
+    ) {
+        parseBody<T>(response)   // any logger.* call inside inherits the http.* context
+    }
+```
+
+Pair it with **transport-aware levels** so expected offline/timeout failures are `WARN` (a visible
+breadcrumb, not reported) while real faults are `ERROR` (recorded by the Crashlytics sink):
+
+```kotlin
+fun logError(tag: String, message: String, e: Exception?, type: ErrorType) {
+    if (type == ErrorType.NETWORK || type == ErrorType.TIMEOUT)
+        Log.w(message, tag = tag, throwable = e)   // expected - breadcrumb only
+    else
+        Log.e(message, tag = tag, throwable = e)   // real fault - non-fatal in Crashlytics
+}
+```
+
+This is the WARN-vs-ERROR contract the Crashlytics sink above relies on (`ERROR+` with a throwable ⇒
+`recordException`). You can also forward a third-party client's own logs into the pipeline - e.g. pipe
+Ktor's logger into `Log.d(message, tag = "Ktor")` so it obeys the same sinks and overrides.
+
+### Tag conventions
+
+Three idioms, each for a different layer:
+
+```kotlin
+// 1. UI / ViewModels - the class name is the tag
+class LoginViewModel {
+    private val log = Log.withClassTag<LoginViewModel>()     // tag == "LoginViewModel"
+    fun onError(t: Throwable) = log.e("Login failed", throwable = t)
+}
+
+// 2. Infra modules - a shared constant tag, lazy lambda message, structured attrs
+private val log = LoggerFactory.get("Cache")
+log.debug(attrs = { attr("op", "read"); attr("key", key) }) { "READ" }
+log.error(throwable = e, attrs = { attr("op", "read"); attr("key", key) }) { "Cache READ failed" }
+
+// 3. Centralize tag strings so call sites and override() can't drift
+const val NETWORK_TAG = "Network"
+LoggerConfig.Builder().override(NETWORK_TAG, LogLevel.WARN)  // ... and Log.d(msg, tag = NETWORK_TAG)
+```
+
+### Bridging a third-party module's logs
+
+If a library ships its own log-event type, map it onto `Log.*` so its output flows through your
+sinks, thresholds, and overrides - no competing sink, no dependency on the logger from that module:
+
+```kotlin
+val bridge = SomeSdkLogger { event ->
+    when (event.level) {
+        SdkLevel.VERBOSE -> Log.v(event.message, event.tag)
+        SdkLevel.DEBUG   -> Log.d(event.message, event.tag)
+        SdkLevel.INFO    -> Log.i(event.message, event.tag)
+        SdkLevel.WARN    -> Log.w(event.message, event.tag, event.throwable)
+        SdkLevel.ERROR   -> Log.e(event.message, event.tag, event.throwable)
+    }
+}
+```
+
+Now the SDK's logs land in Logcat/NSLog in debug and your sanitized Crashlytics sink in release,
+tagged under its own name.
 
 ## Best Practices
 
