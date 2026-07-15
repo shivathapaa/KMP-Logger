@@ -16,7 +16,7 @@ mavenPublishing {
         name.set("KMP Logger")
         description.set(
             "Kotlin Multiplatform logger - A lightweight, structured logging library for Kotlin Multiplatform. Supports Android, iOS, macOS,\n" +
-                    "watchOS, tvOS, JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW."
+                    "JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW."
         )
     }
 }
