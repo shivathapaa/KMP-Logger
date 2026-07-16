@@ -81,15 +81,17 @@ class LogContextElementTest {
         assertNull(element)
     }
 
-    // Element context matches LogContextHolder
+    // The element is the source of truth for the active context on every platform.
+    // (That it is also mirrored into LogContextHolder is a JVM/Android-only guarantee,
+    // asserted in AmbientLogContextJvmTest.)
     @Test
-    fun elementContextMatchesLogContextHolder() = runTest {
+    fun elementContextMatchesActiveLogContext() = runTest {
         val ctx = LogContext(mapOf("env" to "prod"))
         withLogContext(ctx) {
             yield()
             val element = currentCoroutineContext()[LogContextElement]
             assertNotNull(element)
-            assertEquals(LogContextHolder.current().values, element.context.values)
+            assertEquals(currentLogContext().values, element.context.values)
         }
     }
 

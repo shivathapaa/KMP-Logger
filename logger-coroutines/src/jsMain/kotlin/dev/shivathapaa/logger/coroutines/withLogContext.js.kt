@@ -1,18 +1,14 @@
 package dev.shivathapaa.logger.coroutines
 
-import dev.shivathapaa.logger.core.InternalLoggerApi
 import dev.shivathapaa.logger.core.LogContext
-import dev.shivathapaa.logger.core.LogContextHolder
-import kotlinx.coroutines.withContext
 
-@OptIn(InternalLoggerApi::class)
-actual suspend fun <T> withLogContext(ctx: LogContext, block: suspend () -> T): T {
-    val merged = LogContextHolder.current().merge(ctx)
-    val previous = LogContextHolder.current()
-    LogContextHolder.setContext(merged)
-    return try {
-        withContext(LogContextElement(merged)) { block() }
-    } finally {
-        LogContextHolder.setContext(previous)
-    }
-}
+/**
+ * JS implementation.
+ *
+ * The runtime is single-threaded, but concurrent coroutines still interleave across
+ * suspension points, so a shared ambient slot would hand one coroutine another's context.
+ * The context is therefore carried in the coroutine context only. See
+ * [withCoroutineOnlyLogContext].
+ */
+actual suspend fun <T> withLogContext(ctx: LogContext, block: suspend () -> T): T =
+    withCoroutineOnlyLogContext(ctx, block)

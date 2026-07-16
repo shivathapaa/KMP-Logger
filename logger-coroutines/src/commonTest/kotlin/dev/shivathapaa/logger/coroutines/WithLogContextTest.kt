@@ -1,7 +1,6 @@
 package dev.shivathapaa.logger.coroutines
 
 import dev.shivathapaa.logger.core.LogContext
-import dev.shivathapaa.logger.core.LogContextHolder
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
@@ -25,7 +24,7 @@ class WithLogContextTest {
 
         withLogContext(ctx) {
             yield()
-            assertEquals("req-1", LogContextHolder.current().values["requestId"])
+            assertEquals("req-1", currentLogContext().values["requestId"])
         }
     }
 
@@ -35,7 +34,7 @@ class WithLogContextTest {
 
         withLogContext(ctx) { yield() }
 
-        assertTrue(LogContextHolder.current().values.isEmpty())
+        assertTrue(currentLogContext().values.isEmpty())
     }
 
     @Test
@@ -49,7 +48,7 @@ class WithLogContextTest {
             }
         }
 
-        assertTrue(LogContextHolder.current().values.isEmpty())
+        assertTrue(currentLogContext().values.isEmpty())
     }
 
     @Test
@@ -72,7 +71,7 @@ class WithLogContextTest {
         withLogContext(outer) {
             withLogContext(inner) {
                 yield()
-                val current = LogContextHolder.current()
+                val current = currentLogContext()
                 assertEquals("t-1", current.values["traceId"])
                 assertEquals("s-1", current.values["spanId"])
             }
@@ -87,10 +86,10 @@ class WithLogContextTest {
         withLogContext(outer) {
             withLogContext(inner) {
                 yield()
-                assertEquals("test", LogContextHolder.current().values["env"])
+                assertEquals("test", currentLogContext().values["env"])
             }
             yield()
-            assertEquals("prod", LogContextHolder.current().values["env"])
+            assertEquals("prod", currentLogContext().values["env"])
         }
     }
 
@@ -102,7 +101,7 @@ class WithLogContextTest {
         withLogContext(outer) {
             withLogContext(inner) { yield() }
             yield()
-            val current = LogContextHolder.current()
+            val current = currentLogContext()
             assertEquals("t-1", current.values["traceId"])
             assertEquals(null, current.values["spanId"])
         }
@@ -125,7 +124,7 @@ class WithLogContextTest {
     fun withLogContextEmptyCtxDoesNotAddValues() = runTest {
         withLogContext(LogContext()) {
             yield()
-            assertTrue(LogContextHolder.current().values.isEmpty())
+            assertTrue(currentLogContext().values.isEmpty())
         }
     }
 
@@ -135,8 +134,8 @@ class WithLogContextTest {
         withLogContext(outer) {
             withLogContext(LogContext()) {
                 yield()
-                assertEquals("t-1", LogContextHolder.current().values["traceId"])
-                assertEquals(1, LogContextHolder.current().values.size)
+                assertEquals("t-1", currentLogContext().values["traceId"])
+                assertEquals(1, currentLogContext().values.size)
             }
         }
     }
@@ -149,7 +148,7 @@ class WithLogContextTest {
 
         withLogContext(ctx) {
             yield()
-            val current = LogContextHolder.current()
+            val current = currentLogContext()
             assertEquals("t-1", current.values["traceId"])
             assertEquals("s-2", current.values["spanId"])
             assertEquals("u-3", current.values["userId"])
@@ -162,7 +161,7 @@ class WithLogContextTest {
 
         withLogContext(ctx) { yield() }
 
-        val current = LogContextHolder.current()
+        val current = currentLogContext()
         assertNull(current.values["a"])
         assertNull(current.values["b"])
         assertNull(current.values["c"])
@@ -180,21 +179,21 @@ class WithLogContextTest {
             withLogContext(level2) {
                 withLogContext(level3) {
                     yield()
-                    val current = LogContextHolder.current()
+                    val current = currentLogContext()
                     assertEquals("3", current.values["level"]) // innermost wins
                     assertEquals("a", current.values["l1"])
                     assertEquals("b", current.values["l2"])
                     assertEquals("c", current.values["l3"])
                 }
                 yield()
-                val current = LogContextHolder.current()
+                val current = currentLogContext()
                 assertEquals("2", current.values["level"])
                 assertEquals("a", current.values["l1"])
                 assertEquals("b", current.values["l2"])
                 assertNull(current.values["l3"])
             }
             yield()
-            val current = LogContextHolder.current()
+            val current = currentLogContext()
             assertEquals("1", current.values["level"])
             assertEquals("a", current.values["l1"])
             assertNull(current.values["l2"])
@@ -209,7 +208,7 @@ class WithLogContextTest {
                 withLogContext(LogContext(mapOf("c" to "3"))) { yield() }
             }
         }
-        assertTrue(LogContextHolder.current().values.isEmpty())
+        assertTrue(currentLogContext().values.isEmpty())
     }
 
     @Test
@@ -224,7 +223,7 @@ class WithLogContextTest {
                 }
             }
         }
-        assertTrue(LogContextHolder.current().values.isEmpty())
+        assertTrue(currentLogContext().values.isEmpty())
     }
 
     // Coroutine-context element carries merged values 
