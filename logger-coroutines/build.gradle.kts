@@ -6,8 +6,10 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":logger"))
-            implementation(libs.kotlinx.coroutines.core)
+            // `api`, not `implementation`: LogContext and LogContextElement are part of this
+            // module's public API, so consumers must be able to name them transitively.
+            api(project(":logger"))
+            api(libs.kotlinx.coroutines.core)
         }
         android {
             namespace = "io.github.shivathapaa.logger.coroutines"
