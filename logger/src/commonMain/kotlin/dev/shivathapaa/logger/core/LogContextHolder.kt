@@ -65,15 +65,30 @@ expect object LogContextHolder {
      * (a `ThreadContextElement` on JVM/Android) to install and restore the context
      * automatically on every thread the coroutine resumes on.
      *
-     * This function is safe to use when:
-     * - The coroutine always resumes on the same thread (e.g. `Dispatchers.Main`), or
+     * This function is safe to use only when:
+     * - The coroutine always resumes on the same thread (e.g. `Dispatchers.Main`), **and**
      * - No other coroutines run concurrently on the same dispatcher.
+     *
+     * Neither condition can be enforced or detected by this function, and violating either
+     * yields a *wrong* context rather than a missing one - so it is deprecated. Prefer a
+     * mechanism that cannot be wrong:
+     * - [Logger.withContext][dev.shivathapaa.logger.api.Logger.withContext] binds the context
+     *   to the logger object; correct on every platform and dispatcher.
+     * - [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext] carries it in the
+     *   coroutine context, and on JVM/Android additionally keeps this holder in sync.
      *
      * @param ctx The context to merge into the current context for the
      *   duration of [block].
      * @param block The suspending block of code to execute within the merged context.
      * @return The value returned by [block].
      */
+    @Deprecated(
+        message = "Unsafe: the context is held in thread state across suspension, so a " +
+                "coroutine that resumes on another thread - or interleaves with a sibling - " +
+                "can observe the wrong context. Bind the context to the logger with " +
+                "Logger.withContext(ctx), or use withLogContext from logger-coroutines.",
+        level = DeprecationLevel.WARNING
+    )
     suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T
 
     /**
@@ -83,14 +98,15 @@ expect object LogContextHolder {
      * Passing an empty [LogContext] clears the active context entirely (equivalent
      * to removing it from the current scope).
      *
-     * **This is an internal API** used exclusively by the `logger-coroutines` module:
-     * - On **JVM/Android**: called by
-     *   [LogContextElement][dev.shivathapaa.logger.coroutines.LogContextElement]'s
-     *   `ThreadContextElement.updateThreadContext` and `restoreThreadContext` hooks,
-     *   which the coroutine dispatcher invokes automatically on each thread switch.
-     * - On **all other platforms**: called directly by
-     *   [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext] to install
-     *   and restore the context around the coroutine block.
+     * **This is an internal API** used exclusively by the `logger-coroutines` module, and
+     * only on **JVM/Android**, where it is called by
+     * [LogContextElement][dev.shivathapaa.logger.coroutines.LogContextElement]'s
+     * `ThreadContextElement.updateThreadContext` and `restoreThreadContext` hooks, which the
+     * coroutine dispatcher invokes automatically on each thread switch.
+     *
+     * On every other target `ThreadContextElement` does not exist, so nothing can keep this
+     * holder in sync with coroutine resumption. `withLogContext` deliberately does **not**
+     * write here on those targets: doing so handed one coroutine another coroutine's context.
      *
      * Do not call this from application code. Use [withContext] or
      * [withLogContext][dev.shivathapaa.logger.coroutines.withLogContext] instead.
