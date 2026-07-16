@@ -5,9 +5,11 @@ import dev.shivathapaa.logger.core.LogContext
 import dev.shivathapaa.logger.core.LogContextHolder
 import dev.shivathapaa.logger.core.LoggerConfig
 import dev.shivathapaa.logger.coroutines.LogContextElement
+import dev.shivathapaa.logger.coroutines.withActiveLogContext
 import dev.shivathapaa.logger.coroutines.withLogContext
 import dev.shivathapaa.logger.sink.DefaultLogSink
 import dev.shivathapaa.logger.sink.TestSink
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,7 +96,7 @@ suspend fun coroutineSamples() {
     basicWithLogContextSample()
     contextSurvivesSuspensionSample()
     nestedWithLogContextSample()
-    withSuspendingContextSample()
+    boundContextSample()
     logContextElementOnScopeSample()
     concurrentIsolationSample()
     requestPipelineSample()
@@ -110,9 +112,11 @@ suspend fun basicWithLogContextSample() {
     logger.info { "Before withLogContext - no context" }
 
     withLogContext(ctx) {
-        logger.info { "Inside withLogContext - requestId and env present" }
+        // Bind the active context: portable across every platform and dispatcher.
+        val log = logger.withActiveLogContext()
+        log.info { "Inside withLogContext - requestId and env present" }
         delay(10)
-        logger.debug { "After delay - context still present" }
+        log.debug { "After delay - context still present" }
     }
 
     logger.info { "After withLogContext - context removed" }
@@ -126,11 +130,12 @@ suspend fun contextSurvivesSuspensionSample() {
     val ctx = LogContext(mapOf("operationId" to "op-suspend"))
 
     withLogContext(ctx) {
-        logger.info { "Before delay - context present" }
+        val log = logger.withActiveLogContext()
+        log.info { "Before delay - context present" }
         delay(30)
-        logger.info { "After delay(30) - context still present" }
+        log.info { "After delay(30) - context still present" }
         delay(50)
-        logger.info { "After delay(50) - context still present" }
+        log.info { "After delay(50) - context still present" }
     }
 
     println("* Context survives suspension - done")
@@ -145,51 +150,62 @@ suspend fun nestedWithLogContextSample() {
     val innerCtx = LogContext(mapOf("spanId" to "span-db", "service" to "database"))
 
     withLogContext(outerCtx) {
-        logger.info { "Outer: traceId=trace-term, service=terminal" }
+        logger.withActiveLogContext().info { "Outer: traceId=trace-term, service=terminal" }
 
         withLogContext(innerCtx) {
             // service overrides to "database", spanId added
-            logger.info { "Inner: traceId=trace-term, spanId=span-db, service=database" }
+            val log = logger.withActiveLogContext()
+            log.info { "Inner: traceId=trace-term, spanId=span-db, service=database" }
             delay(10)
-            logger.debug { "After delay in inner - merged context still present" }
+            log.debug { "After delay in inner - merged context still present" }
         }
 
-        logger.info { "Back to outer: traceId=trace-term, service=terminal" }
+        logger.withActiveLogContext().info { "Back to outer: traceId=trace-term, service=terminal" }
     }
 
     println("* Nested withLogContext - done")
 }
 
-suspend fun withSuspendingContextSample() {
-    printHeader("COROUTINE 4: withSuspendingContext (CORE)")
+suspend fun boundContextSample() {
+    printHeader("COROUTINE 4: BOUND CONTEXT (PORTABLE)")
 
-    val logger = LoggerFactory.get("TermSuspendingCtx")
-    val ctx = LogContext(mapOf("source" to "withSuspendingContext"))
+    // The context is a field on the logger, so it needs no coroutine machinery at all and
+    // cannot be lost or mixed up - on any platform, under any dispatcher.
+    val log = LoggerFactory.get("TermBoundCtx")
+        .withContext("service" to "terminal", "region" to "eu-west-1")
 
-    // Safe here: single-threaded native dispatcher, no thread migration
-    LogContextHolder.withSuspendingContext(ctx) {
-        logger.info { "Inside withSuspendingContext - source present" }
+    log.info { "Bound context attached - no withLogContext block needed" }
+
+    withContext(Dispatchers.Default) {
         delay(10)
-        logger.info { "After delay - context present (safe on native, limited on JVM)" }
+        log.info { "Survives a thread hop - the context travels with the object" }
     }
 
-    println("* withSuspendingContext - done")
-    println("* Note: use withLogContext for guaranteed propagation on JVM/Android")
+    // Chaining merges; later values win on collision.
+    log.withContext("requestId" to "req-77")
+        .debug { "service + region + requestId" }
+
+    log.info { "Original logger unchanged - no requestId here" }
+
+    println("* Bound context - done")
+    println("* Logger.withContext is correct on every platform; prefer it for new code")
 }
 
 suspend fun logContextElementOnScopeSample() {
     printHeader("COROUTINE 5: LogContextElement ON SCOPE")
 
     val logger = LoggerFactory.get("TermScopeCtx")
-    val scopeCtx = LogContext(mapOf("service" to "terminal-app", "version" to "1.4.0"))
+    val scopeCtx = LogContext(mapOf("service" to "terminal-app", "version" to "1.5.0"))
     val scopeElement = LogContextElement(scopeCtx)
 
     // Attach context to coroutine context directly
     withContext(scopeElement) {
-        logger.info { "Inherited from context element: service=terminal-app, version=1.4.0" }
+        logger.withActiveLogContext()
+            .info { "Inherited from context element: service=terminal-app, version=1.5.0" }
 
         withLogContext(LogContext(mapOf("operation" to "read"))) {
-            logger.info { "Merged: service=terminal-app, version=1.4.0, operation=read" }
+            logger.withActiveLogContext()
+                .info { "Merged: service=terminal-app, version=1.5.0, operation=read" }
         }
     }
 
@@ -201,28 +217,31 @@ suspend fun concurrentIsolationSample() {
 
     val logger = LoggerFactory.get("TermConcurrencyDemo")
 
-    // On native these run cooperatively but contexts are restored correctly
+    // Each worker binds its own context, so the two can never mix - including on
+    // Dispatchers.Default, which is a real multi-threaded worker pool on Kotlin/Native.
     coroutineScope {
-        launch {
+        launch(Dispatchers.Default) {
             withLogContext(LogContext(mapOf("worker" to "A", "taskId" to 1))) {
+                val log = logger.withActiveLogContext()
                 repeat(3) { i ->
                     delay(15)
-                    logger.info { "Worker A step $i - taskId=1" }
+                    log.info { "Worker A step $i - taskId=1" }
+                }
+            }
+        }
+        launch(Dispatchers.Default) {
+            withLogContext(LogContext(mapOf("worker" to "B", "taskId" to 2))) {
+                val log = logger.withActiveLogContext()
+                repeat(3) { i ->
+                    delay(10)
+                    log.info { "Worker B step $i - taskId=2" }
                 }
             }
         }
     }
 
-    // Sequential on native (no true parallelism), but context is correct either way
-    withLogContext(LogContext(mapOf("worker" to "B", "taskId" to 2))) {
-        repeat(3) { i ->
-            delay(10)
-            logger.info { "Worker B step $i - taskId=2" }
-        }
-    }
-
     println("* Concurrent isolation - done")
-    println("* On native: cooperative, no thread migration. On JVM: true parallel with isolation.")
+    println("* Workers run in parallel here; each carries only its own context")
 }
 
 suspend fun requestPipelineSample() {
@@ -233,28 +252,29 @@ suspend fun requestPipelineSample() {
     val logger = LoggerFactory.get("TermRequestPipeline")
 
     withLogContext(LogContext(mapOf("requestId" to requestId, "userId" to userId))) {
-        logger.info { "Incoming request" }
+        logger.withActiveLogContext().info { "Incoming request" }
 
         withLogContext(LogContext(mapOf("phase" to "auth"))) {
-            logger.debug { "Verifying token" }
+            val log = logger.withActiveLogContext()
+            log.debug { "Verifying token" }
             delay(15)
-            logger.info { "Token valid" }
+            log.info { "Token valid" }
         }
 
         withLogContext(LogContext(mapOf("phase" to "fetch"))) {
-            logger.debug { "Querying data store" }
+            val log = logger.withActiveLogContext()
+            log.debug { "Querying data store" }
             delay(30)
-            logger.debug(attrs = { attr("rows", 3) }) { "Query complete" }
+            log.debug(attrs = { attr("rows", 3) }) { "Query complete" }
         }
 
         withLogContext(LogContext(mapOf("phase" to "response"))) {
-            logger.debug { "Serializing response" }
+            val log = logger.withActiveLogContext()
+            log.debug { "Serializing response" }
             delay(5)
-            logger.info(attrs = {
-                attr("statusCode", 200); attr(
-                "durationMs",
-                50
-            )
+            log.info(attrs = {
+                attr("statusCode", 200)
+                attr("durationMs", 50)
             }) { "Request complete" }
         }
     }

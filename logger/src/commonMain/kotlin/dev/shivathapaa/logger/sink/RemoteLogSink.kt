@@ -17,7 +17,7 @@ import dev.shivathapaa.logger.formatters.LogFormatters
  *     private val formatter: LogEventFormatter = LogFormatters.json(false)
  * ) : LogSink {
  *     override fun emit(event: LogEvent) {
- *         if (event.level.priority < minLevel.priority) return
+ *         if (event.level < minLevel) return
  *
  *         val message = formatter.format(event)
  *         // FirebaseCrashlytics.getInstance().log(message)

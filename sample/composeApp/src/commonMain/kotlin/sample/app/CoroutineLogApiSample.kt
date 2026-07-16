@@ -21,6 +21,7 @@ import dev.shivathapaa.logger.core.LogContext
 import dev.shivathapaa.logger.core.LogContextHolder
 import dev.shivathapaa.logger.core.LoggerConfig
 import dev.shivathapaa.logger.coroutines.LogContextElement
+import dev.shivathapaa.logger.coroutines.withActiveLogContext
 import dev.shivathapaa.logger.coroutines.withLogContext
 import dev.shivathapaa.logger.sink.DefaultLogSink
 import dev.shivathapaa.logger.sink.TestSink
@@ -63,7 +64,7 @@ fun CoroutineLogApiSample(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
 
         Text("Comparison & Scope", style = MaterialTheme.typography.titleMedium)
-        DemoButton("5. withSuspendingContext (core)", ::withSuspendingContextDemo)
+        DemoButton("5. Bound context (portable)", ::boundContextDemo)
         DemoButton("6. LogContextElement on Scope", ::logContextElementOnScope)
 
         Spacer(Modifier.height(8.dp))
@@ -104,15 +105,21 @@ fun basicWithLogContext() {
         logger.info { "No context here" }
 
         withLogContext(ctx) {
+            // Bind the active context to the logger. This is the portable pattern: it works
+            // on every platform. (On JVM/Android an unbound `logger` would also see the
+            // context ambiently, but that is a JVM-only bonus - see docs.)
+            val log = logger.withActiveLogContext()
+
             println("* Inside withLogContext - context attached:")
-            logger.info { "Has requestId and userId in context" }
-            logger.debug { "Context is automatically included in every log" }
+            log.info { "Has requestId and userId in context" }
+            log.debug { "Context is automatically included in every log" }
         }
 
         println("* After withLogContext - context removed:")
         logger.info { "Context is gone again" }
 
         println("** withLogContext scopes context to the block")
+        println("** Bind it with withActiveLogContext() so it works on every platform")
     }
 }
 
@@ -127,13 +134,15 @@ fun contextSurvivesSuspension() {
         val ctx = LogContext(mapOf("operationId" to "op-suspend-test"))
 
         withLogContext(ctx) {
-            logger.info { "Before suspension - operationId in context" }
+            val log = logger.withActiveLogContext()
+
+            log.info { "Before suspension - operationId in context" }
 
             delay(50)  // suspension point
-            logger.info { "After delay(50) - context still present" }
+            log.info { "After delay(50) - context still present" }
 
             delay(100) // another suspension point
-            logger.info { "After delay(100) - context still present" }
+            log.info { "After delay(100) - context still present" }
         }
 
         println("** Context survives suspension on all platforms")
@@ -142,9 +151,10 @@ fun contextSurvivesSuspension() {
 
 /**
  * Demonstrates that context survives thread hops via withContext.
- * On JVM/Android this exercises the ThreadContextElement mechanism.
- * On single-threaded platforms (JS, iOS, etc.) there is no thread switch
- * but the test still passes correctly.
+ *
+ * A bound logger carries the context as a field, so it survives any dispatcher on any
+ * platform. Note Kotlin/Native is *not* single-threaded - `Dispatchers.Default` is a
+ * multi-threaded worker pool there too, which is exactly why binding matters.
  */
 fun contextSurvivesThreadHop() {
     printHeader("3. CONTEXT SURVIVES THREAD HOP")
@@ -154,21 +164,22 @@ fun contextSurvivesThreadHop() {
         val ctx = LogContext(mapOf("traceId" to "trace-thread-hop"))
 
         withLogContext(ctx) {
-            logger.info { "Original coroutine context - traceId present" }
+            val log = logger.withActiveLogContext()
+
+            log.info { "Original coroutine context - traceId present" }
 
             withContext(Dispatchers.Default) {
-                // On JVM/Android: different thread, ThreadContextElement restores context
-                // On JS/iOS/etc.: same thread, context is still set
-                logger.info { "After withContext(Default) - traceId still present" }
+                // The context is a field on `log`, so the thread it runs on is irrelevant.
+                log.info { "After withContext(Default) - traceId still present" }
                 delay(30)
-                logger.debug { "After delay inside thread hop - traceId still present" }
+                log.debug { "After delay inside thread hop - traceId still present" }
             }
 
-            logger.info { "Back to original context - traceId still present" }
+            log.info { "Back to original context - traceId still present" }
         }
 
-        println("** On JVM/Android: ThreadContextElement auto-installs on every thread resume")
-        println("** On JS/iOS/native: single-threaded, context set directly on LogContextHolder")
+        println("** A bound logger carries context across any dispatcher, on every platform")
+        println("** JVM/Android additionally mirror it ambiently via ThreadContextElement")
     }
 }
 
@@ -186,17 +197,18 @@ fun nestedWithLogContext() {
         val innerCtx = LogContext(mapOf("spanId" to "span-456", "service" to "db"))
 
         withLogContext(outerCtx) {
-            logger.info { "Outer: traceId=trace-999, service=api" }
+            logger.withActiveLogContext().info { "Outer: traceId=trace-999, service=api" }
 
             withLogContext(innerCtx) {
                 // spanId added, service overrides to "db"
-                logger.info { "Inner: traceId=trace-999, spanId=span-456, service=db" }
+                val log = logger.withActiveLogContext()
+                log.info { "Inner: traceId=trace-999, spanId=span-456, service=db" }
 
                 delay(20)
-                logger.debug { "After delay in inner - still merged context" }
+                log.debug { "After delay in inner - still merged context" }
             }
 
-            logger.info { "Back to outer: traceId=trace-999, service=api" }
+            logger.withActiveLogContext().info { "Back to outer: traceId=trace-999, service=api" }
         }
 
         logger.info { "Outside all blocks - no context" }
@@ -205,27 +217,34 @@ fun nestedWithLogContext() {
 }
 
 /**
- * Demonstrates withSuspendingContext from the core module.
- * Safe on single-threaded dispatchers; limited on JVM/Android with thread hops.
+ * Demonstrates binding a context directly to a logger with [Logger.withContext].
+ *
+ * This needs no coroutine machinery at all: the context is a field on the logger, so it is
+ * correct on every platform and under any dispatcher. It is the most robust option, and the
+ * one to reach for when you cannot guarantee which dispatcher your code runs on.
  */
-fun withSuspendingContextDemo() {
-    printHeader("5. withSuspendingContext (CORE, LIMITED)")
+fun boundContextDemo() {
+    printHeader("5. BOUND CONTEXT (PORTABLE, NO AMBIENT STATE)")
 
     CoroutineScope(Dispatchers.Default).launch {
-        val logger = LoggerFactory.get("SuspendingContextDemo")
-        val ctx = LogContext(mapOf("source" to "withSuspendingContext"))
+        // Bind once; every event from `log` carries these values.
+        val log = LoggerFactory.get("BoundContextDemo")
+            .withContext("service" to "payments", "region" to "eu-west-1")
 
-        // Safe: stays on the same dispatcher thread after a simple delay
-        LogContextHolder.withSuspendingContext(ctx) {
-            logger.info { "Inside withSuspendingContext - source present" }
+        log.info { "Bound context is attached without any withLogContext block" }
+
+        withContext(Dispatchers.Default) {
             delay(30)
-            // NOTE: On JVM/Android with multi-threaded dispatchers, context may be
-            // missing here if the coroutine resumed on a different thread.
-            // Use withLogContext from logger-coroutines for guaranteed propagation.
-            logger.info { "After delay - context present (safe if no thread switch)" }
+            log.info { "Survives a thread hop - the context is a field, not thread state" }
         }
 
-        println("** withSuspendingContext: use withLogContext for guaranteed propagation on JVM/Android")
+        // Chaining merges; later values win on key collision.
+        val requestLog = log.withContext("requestId" to "req-77")
+        requestLog.debug { "service + region + requestId" }
+
+        log.info { "Original logger is unchanged - no requestId here" }
+
+        println("** Logger.withContext: correct on every platform, no ambient state involved")
     }
 }
 

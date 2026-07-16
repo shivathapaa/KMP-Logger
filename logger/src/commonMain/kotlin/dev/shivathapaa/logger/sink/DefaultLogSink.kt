@@ -25,11 +25,13 @@ import dev.shivathapaa.logger.formatters.LogFormatters
  *
  * Example:
  * ```kotlin
- * LoggerFactory.install {
- *     addSink(DefaultLogSink())
- *     // or with a custom formatter
- *     addSink(DefaultLogSink(LogFormatters.compact(showEmoji = true)))
- * }
+ * LoggerFactory.install(
+ *     LoggerConfig.Builder()
+ *         .addSink(DefaultLogSink())
+ *         // or with a custom formatter
+ *         .addSink(DefaultLogSink(LogFormatters.compact(showEmoji = true)))
+ *         .build()
+ * )
  * ```
  *
  * @property logFormatter The formatter used to convert log events into strings.
