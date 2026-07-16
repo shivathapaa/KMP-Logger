@@ -69,6 +69,25 @@ class LogPolicyTest {
     }
 
     @Test
+    fun overrideEscapesGlobalOff() {
+        // minLevel(OFF) + override(tag, DEBUG) is the "silence everything except X" case:
+        // the override must still win, otherwise the global OFF swallows it.
+        val policy = LogPolicy(LogLevel.OFF, mapOf("Network" to LogLevel.DEBUG))
+
+        assertTrue(policy.allows(event(LogLevel.DEBUG, tag = "Network")))
+        assertTrue(policy.allows(event(LogLevel.ERROR, tag = "Network")))
+        assertFalse(policy.allows(event(LogLevel.ERROR, tag = "Other")))
+    }
+
+    @Test
+    fun overrideToOffSilencesOnlyThatTag() {
+        val policy = LogPolicy(LogLevel.VERBOSE, mapOf("Noisy" to LogLevel.OFF))
+
+        assertFalse(policy.allows(event(LogLevel.ERROR, tag = "Noisy")))
+        assertTrue(policy.allows(event(LogLevel.VERBOSE, tag = "Other")))
+    }
+
+    @Test
     fun levelAndNameOverloadMatchesEventOverload() {
         val policy = LogPolicy(LogLevel.INFO, mapOf("Tagged" to LogLevel.ERROR))
 
