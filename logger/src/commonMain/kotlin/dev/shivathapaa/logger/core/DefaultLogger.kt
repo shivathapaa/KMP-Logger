@@ -17,10 +17,13 @@ import dev.shivathapaa.logger.api.StructuredLogger
  *   as the tag in log output.
  * @property pipeline The pipeline responsible for filtering and dispatching
  *   [LogEvent]s to configured sinks.
+ * @property boundContext Context carried by this logger instance and merged into every
+ *   event it emits, on top of the ambient context. Empty unless [withContext] was used.
  */
 internal class DefaultLogger(
     private val name: String,
-    private val pipeline: LogPipeline
+    private val pipeline: LogPipeline,
+    private val boundContext: LogContext = LogContext()
 ) : StructuredLogger {
 
     /**
@@ -50,10 +53,29 @@ internal class DefaultLogger(
             message = message(),
             throwable = throwable,
             attributes = AttrBuilder().apply(attrs).build(),
-            context = LogContextHolder.current(),
+            // Bound context wins over ambient: binding is explicit, whereas ambient context
+            // is best-effort off JVM/Android and must never override a deliberate value.
+            context = resolveContext(),
             thread = currentThreadName()
         )
 
         pipeline.process(event)
     }
+
+    private fun resolveContext(): LogContext {
+        val ambient = LogContextHolder.current()
+        return when {
+            boundContext.values.isEmpty() -> ambient
+            ambient.values.isEmpty() -> boundContext
+            else -> ambient.merge(boundContext)
+        }
+    }
+
+    /**
+     * Returns a copy of this logger carrying [boundContext] merged with [ctx]; later values
+     * win on collision. Merging into the event happens after the level filter in [log], so
+     * binding costs nothing for suppressed levels.
+     */
+    internal fun withBoundContext(ctx: LogContext): DefaultLogger =
+        DefaultLogger(name, pipeline, boundContext.merge(ctx))
 }
