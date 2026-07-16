@@ -27,6 +27,13 @@ actual object LogContextHolder {
         }
     }
 
+    @Deprecated(
+        message = "Unsafe: the context is held in thread state across suspension, so a " +
+                "coroutine that resumes on another thread - or interleaves with a sibling - " +
+                "can observe the wrong context. Bind the context to the logger with " +
+                "Logger.withContext(ctx), or use withLogContext from logger-coroutines.",
+        level = DeprecationLevel.WARNING
+    )
     actual suspend fun <T> withSuspendingContext(ctx: LogContext, block: suspend () -> T): T {
         val previous = current()
         val merged = previous.merge(ctx)

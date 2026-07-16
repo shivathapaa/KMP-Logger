@@ -12,6 +12,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+// withSuspendingContext is deprecated (it can observe the wrong context across suspension),
+// but it is still published, so its documented single-threaded behaviour stays covered here.
+@Suppress("DEPRECATION")
 class LogContextHolderTest {
 
     @OptIn(InternalLoggerApi::class)
