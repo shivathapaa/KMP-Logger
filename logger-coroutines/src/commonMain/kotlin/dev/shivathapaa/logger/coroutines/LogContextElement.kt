@@ -17,11 +17,14 @@ import kotlin.coroutines.CoroutineContext
  * Concurrent coroutines on JVM are also fully isolated from each other.
  *
  * ### Other platforms (JS, WasmJS, iOS, macOS, Linux, MinGW)
- * Coroutines are single-threaded. The element stores the [LogContext] value in the
- * coroutine context for inspection via `coroutineContext[LogContextElement]`.
- * [withLogContext] installs the context into [LogContextHolder] for the duration of
- * the block, but concurrent coroutines that interleave via suspension points share
- * the same context slot and are not isolated from each other.
+ * `kotlinx.coroutines.ThreadContextElement` does not exist outside JVM, so here the element
+ * is a plain carrier: it holds the [LogContext] in the coroutine context and nothing
+ * mirrors it into [LogContextHolder]. The context still survives suspension and thread hops
+ * - it travels with the coroutine - and coroutines remain isolated from each other. It is
+ * simply not visible to a non-suspending `LogContextHolder.current()` read, because
+ * resolving the coroutine context requires `suspend`.
+ *
+ * Read it with [currentLogContext], or attach it to a logger with [withActiveLogContext].
  *
  * ### Accessing the element
  * The active element is always retrievable from inside a [withLogContext] block:

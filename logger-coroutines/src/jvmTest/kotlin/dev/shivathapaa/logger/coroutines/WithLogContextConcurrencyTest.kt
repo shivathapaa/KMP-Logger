@@ -2,19 +2,26 @@ package dev.shivathapaa.logger.coroutines
 
 import dev.shivathapaa.logger.core.LogContext
 import dev.shivathapaa.logger.core.LogContextHolder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// JVM-only: ThreadContextElement guarantees context isolation across concurrent coroutines
-// even when they yield and are interleaved on the same or different threads. This is a
-// JVM/Android feature single-threaded platforms share one context slot and cannot
-// isolate concurrent coroutines this way.
+// JVM-only: LogContextElement is a real ThreadContextElement here, so the context is
+// reinstalled by the dispatcher on every thread the coroutine resumes on.
+//
+// The `runTest` cases below cover *interleaved isolation* on a single-threaded test
+// dispatcher. The `runBlocking` cases cover *thread-hop survival* on real multi-threaded
+// dispatchers (Dispatchers.IO / Dispatchers.Default) - which is the guarantee that does
+// NOT hold on the other targets, where the element is a plain CoroutineContext.Element.
 class WithLogContextConcurrencyTest {
 
     @Test
@@ -64,5 +71,47 @@ class WithLogContextConcurrencyTest {
         assertEquals("job", deferred.await())
         assertNull(LogContextHolder.current().values["bg"])
         assertNull(LogContextHolder.current().values["fg"])
+    }
+
+    @Test
+    fun withLogContextSurvivesThreadHopsOnRealDispatchers() = runBlocking {
+        val threads = mutableSetOf<String>()
+
+        withLogContext(LogContext(mapOf("requestId" to "req-1"))) {
+            threads += Thread.currentThread().name
+
+            val onIo = withContext(Dispatchers.IO) {
+                threads += Thread.currentThread().name
+                delay(1)
+                LogContextHolder.current().values["requestId"]
+            }
+            assertEquals("req-1", onIo)
+
+            val onDefault = withContext(Dispatchers.Default) {
+                threads += Thread.currentThread().name
+                delay(1)
+                LogContextHolder.current().values["requestId"]
+            }
+            assertEquals("req-1", onDefault)
+        }
+
+        // Prove the hop actually happened - otherwise the assertions above are vacuous.
+        assertTrue(threads.size > 1, "expected to run on more than one thread, saw $threads")
+        assertNull(LogContextHolder.current().values["requestId"])
+    }
+
+    @Test
+    fun withLogContextIsolatesConcurrentCoroutinesAcrossRealThreads() = runBlocking {
+        val results = (0 until 8).map { i ->
+            async(Dispatchers.Default) {
+                withLogContext(LogContext(mapOf("id" to "$i"))) {
+                    yield()
+                    delay(1)
+                    LogContextHolder.current().values["id"]
+                }
+            }
+        }.awaitAll()
+
+        assertEquals((0 until 8).map { "$it" }, results)
     }
 }
