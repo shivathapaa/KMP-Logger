@@ -22,9 +22,11 @@ internal class LogPolicy(
      *   for [loggerName].
      */
     fun allows(level: LogLevel, loggerName: String): Boolean {
-        if (minLevel == LogLevel.OFF) return false
-
+        // Overrides are resolved first: a per-logger override outranks minLevel in both
+        // directions, so minLevel(OFF) + override(name, DEBUG) still lets `name` through.
         val effectiveLevel = overrides[loggerName] ?: minLevel
+
+        if (effectiveLevel == LogLevel.OFF) return false
 
         return level >= effectiveLevel
     }
