@@ -85,22 +85,34 @@ internal class JsonLogFormatter(private val showEmoji: Boolean) : LogEventFormat
     private fun StringBuilder.appendValue(value: Any?) {
         when (value) {
             null -> append("null")
+            // JSON has no NaN/Infinity literal - emit non-finite values as strings
+            // so the output stays parseable instead of silently corrupting the line.
+            is Double -> if (value.isFinite()) append(value) else appendQuoted(value.toString())
+            is Float -> if (value.isFinite()) append(value) else appendQuoted(value.toString())
             is Number,
             is Boolean -> append(value)
 
-            else -> append('"').append(value.toString().escapeJson()).append('"')
+            else -> appendQuoted(value.toString())
         }
+    }
+
+    private fun StringBuilder.appendQuoted(value: String) {
+        append('"').append(value.escapeJson()).append('"')
     }
 }
 
 private fun String.escapeJson(): String = buildString(length) {
     for (c in this@escapeJson) {
-        when (c) {
-            '"' -> append("\\\"")
-            '\\' -> append("\\\\")
-            '\n' -> append("\\n")
-            '\r' -> append("\\r")
-            '\t' -> append("\\t")
+        when {
+            c == '"' -> append("\\\"")
+            c == '\\' -> append("\\\\")
+            c == '\n' -> append("\\n")
+            c == '\r' -> append("\\r")
+            c == '\t' -> append("\\t")
+            c == '\b' -> append("\\b")
+            c == '' -> append("\\f")
+            // RFC 8259 section 7: every character below U+0020 must be escaped.
+            c < ' ' -> append("\\u").append(c.code.toString(16).padStart(4, '0'))
             else -> append(c)
         }
     }
