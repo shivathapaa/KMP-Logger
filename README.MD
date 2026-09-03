@@ -46,16 +46,6 @@ JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 - **API reference** - full Dokka docs for `logger` and `logger-coroutines`, with source links:
   [shivathapaa.github.io/KMP-Logger/api](https://shivathapaa.github.io/KMP-Logger/api/)
 
-Both are published to GitHub Pages from `main` by the `pages.yml` workflow. Build either locally:
-
-```bash
-# API reference -> build/dokka/html/index.html
-./gradlew :dokkaGeneratePublicationHtml
-
-# Web demo on a local dev server
-./gradlew :sample:composeApp:wasmJsBrowserDevelopmentRun
-```
-
 ## Features
 
 - **Two APIs** - Simple `Log.*` for quick debugging; structured `Logger` for production use
