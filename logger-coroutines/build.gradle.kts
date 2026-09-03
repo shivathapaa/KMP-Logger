@@ -1,6 +1,7 @@
 plugins {
     id("kmplogger.kotlin-multiplatform")
     id("kmplogger.maven-publish")
+    id("kmplogger.dokka")
 }
 
 kotlin {

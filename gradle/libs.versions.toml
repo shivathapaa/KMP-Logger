@@ -1,20 +1,22 @@
 [versions]
-agp = "9.3.0"
+agp = "9.3.2"
 coroutines = "1.11.0"
-foundation = "1.11.1"
+foundation = "1.12.0"
 kotlin = "2.4.10"
 android-minSdk = "24"
 android-compileSdk = "37"
 android-targetSdk = "37"
 maven-publish = "0.37.0"
-composeMultiplatform = "1.11.1"
+dokka = "2.2.0"
+composeMultiplatform = "1.12.0"
 androidx-activityCompose = "1.13.0"
-material3 = "1.9.0"
+material3 = "1.12.0-alpha03"
 
 [libraries]
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 vanniktech-publish = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "maven-publish" }
+dokka-gradlePlugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
 androidx-activityCompose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
@@ -30,3 +32,4 @@ maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publ
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
