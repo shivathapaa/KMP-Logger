@@ -5,13 +5,17 @@
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4+-7F52FF.svg?logo=kotlin&logoColor=white" alt="Kotlin"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"/></a>
   <a href="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml"><img src="https://github.com/shivathapaa/KMP-Logger/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://shivathapaa.github.io/KMP-Logger/"><img src="https://img.shields.io/badge/Live%20demo-%E2%86%92-1f6feb?labelColor=E8EEF6" alt="Live demo"/></a>
+  <a href="https://shivathapaa.github.io/KMP-Logger/api/"><img src="https://img.shields.io/badge/API%20reference-%E2%86%92-12100E?labelColor=E8EEF6" alt="API reference"/></a>
 </p>
 
 A lightweight, structured logging library for Kotlin Multiplatform. Supports Android, iOS, macOS,
 JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 
-## Table of Contents
+<details>
+  <summary><b>Table of Contents</b></summary>
 
+- [Documentation & Demo](#documentation--demo)
 - [Features](#features)
 - [Installation](#installation)
 - [Simple Log API](#simple-log-api)
@@ -33,6 +37,24 @@ JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+</details>
+
+## Documentation & Demo
+
+- **Live demo** - run KMP Logger in the browser via the Compose/Wasm sample:
+  [shivathapaa.github.io/KMP-Logger](https://shivathapaa.github.io/KMP-Logger/)
+- **API reference** - full Dokka docs for `logger` and `logger-coroutines`, with source links:
+  [shivathapaa.github.io/KMP-Logger/api](https://shivathapaa.github.io/KMP-Logger/api/)
+
+Both are published to GitHub Pages from `main` by the `pages.yml` workflow. Build either locally:
+
+```bash
+# API reference -> build/dokka/html/index.html
+./gradlew :dokkaGeneratePublicationHtml
+
+# Web demo on a local dev server
+./gradlew :sample:composeApp:wasmJsBrowserDevelopmentRun
+```
 
 ## Features
 
