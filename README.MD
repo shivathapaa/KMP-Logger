@@ -78,7 +78,7 @@ JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:2.0.0")
+    implementation("io.github.shivathapaa:logger:2.1.0")
 }
 ```
 
@@ -90,8 +90,8 @@ and thread switches (e.g. `Dispatchers.IO` or `Dispatchers.Default` on JVM/Andro
 ```kotlin
 // build.gradle.kts (commonMain)
 commonMain.dependencies {
-    implementation("io.github.shivathapaa:logger:2.0.0")
-    implementation("io.github.shivathapaa:logger-coroutines:2.0.0")
+    implementation("io.github.shivathapaa:logger:2.1.0")
+    implementation("io.github.shivathapaa:logger-coroutines:2.1.0")
 }
 ```
 
@@ -100,7 +100,7 @@ For Android-only apps, platform-specific artifacts are also available:
 ```kotlin
 // build.gradle.kts (androidMain)
 androidMain.dependencies {
-    implementation("io.github.shivathapaa:logger-android:2.0.0")
+    implementation("io.github.shivathapaa:logger-android:2.1.0")
 }
 ```
 
