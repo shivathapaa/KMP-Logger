@@ -1,3 +1,4 @@
+import com.android.build.api.variant.HostTestBuilder
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -31,6 +32,19 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    testOptions {
+        // AGP 9.5 registers a Compose Preview runfiles task for every variant; configuring it
+        // fails unless the variant's unit tests include the compiled Android resources.
+        unitTests.isIncludeAndroidResources = true
+    }
+}
+
+androidComponents {
+    beforeVariants { variant ->
+        // The same task also needs a unit-test component, which AGP only creates for debug by
+        // default, so anything that realizes every task (such as `./gradlew tasks`) fails on release.
+        variant.hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
     }
 }
 
