@@ -11,7 +11,7 @@ actual object LogContextHolder {
         try {
             return block()
         } finally {
-            holder.set(previous)
+            store(previous)
         }
     }
 
@@ -28,12 +28,17 @@ actual object LogContextHolder {
         try {
             return block()
         } finally {
-            holder.set(previous)
+            store(previous)
         }
     }
 
     @InternalLoggerApi
     actual fun setContext(ctx: LogContext) {
+        store(ctx)
+    }
+
+    // An empty context is removed rather than stored, so pooled threads keep no ThreadLocal entry.
+    private fun store(ctx: LogContext) {
         if (ctx.values.isEmpty()) holder.remove() else holder.set(ctx)
     }
 }
