@@ -60,8 +60,10 @@ JVM, JS (Node.js & Browser), Wasm/JS, Linux, and MinGW.
   and is never visible to another coroutine. On JVM/Android it is a real `ThreadContextElement`,
   so unbound loggers see it ambiently too - see [Coroutine Support](#coroutine-support)
 - **Lazy Evaluation** - Message lambda is never evaluated when the event would be filtered out
+  (except `FATAL`, which always throws)
 - **Real Timestamps** - Epoch milliseconds captured on all platforms
-- **Thread Names** - Captured natively on Android, JVM, and Apple; `"main"` elsewhere
+- **Thread Names** - Captured natively on Android, JVM, and Apple (unnamed Apple worker threads
+  report `"background"`); `"main"` elsewhere
 - **Platform-Native Output** - Logcat on Android, `NSLog` on Apple, `console` on JS/Wasm,
   `stdout` on JVM/Linux/MinGW
 - **Configurable Pipeline** - Per-tag level overrides, multiple sinks, custom formatters
@@ -236,6 +238,9 @@ above it:
 | ERROR   | ❤️    | Errors and failures that need investigation     |
 | FATAL   | 💔    | Unrecoverable errors - flushes sinks and throws |
 | OFF     | ❌     | Disables all logging                            |
+
+`FATAL` throws even when it is filtered out, for example by `minLevel(LogLevel.OFF)` in a release
+build: the event is not emitted, but logging configuration never changes control flow.
 
 ### Lazy Evaluation
 
@@ -618,12 +623,11 @@ not prepended before it - so the output is always valid JSON:
 
 ```json
 {
-  "levelEmoji": "💙",
   "level": "INFO",
+  "levelEmoji": "💙",
   "logger": "PaymentService",
   "timestamp": 1711785600000,
-  "message": "Payment accepted",
-  "thread": "main"
+  "message": "Payment accepted"
 }
 ```
 
@@ -640,7 +644,8 @@ ConsoleSink(myFormatter)
 
 ### DefaultLogSink
 
-Platform-native logging (recommended for most use cases):
+Platform-native logging (recommended for most use cases, and the sink used when `install()` is
+never called):
 
 ```kotlin
 .addSink(DefaultLogSink())
@@ -650,6 +655,35 @@ Platform-native logging (recommended for most use cases):
 - **Apple** - `NSLog`
 - **JVM / Linux / MinGW** - `stdout`
 - **JS / Wasm** - `console`
+
+A throwable is rendered once, by the platform channel (on JS as the error object itself), so the
+formatter you pass receives the event without it. `LogFormatters.json` output from this sink
+therefore has no `"error"` field; use `ConsoleSink` or `RemoteLogSink` for pure JSON lines.
+
+On the JVM, to route events into `java.util.logging` instead (for example to reach Logback through
+an SLF4J bridge), add a small sink in `jvmMain`:
+
+```kotlin
+import java.util.logging.Level
+import java.util.logging.Logger as JulLogger
+
+class JulLogSink(
+    private val formatter: LogEventFormatter = LogFormatters.default(showEmoji = false)
+) : LogSink {
+    override fun emit(event: LogEvent) {
+        val level = when (event.level) {
+            LogLevel.VERBOSE -> Level.FINEST
+            LogLevel.DEBUG -> Level.FINE
+            LogLevel.INFO -> Level.INFO
+            LogLevel.WARN -> Level.WARNING
+            LogLevel.ERROR, LogLevel.FATAL -> Level.SEVERE
+            LogLevel.OFF -> return
+        }
+        JulLogger.getLogger(event.loggerName)
+            .log(level, formatter.format(event.copy(throwable = null)), event.throwable)
+    }
+}
+```
 
 ### ConsoleSink
 
@@ -697,7 +731,8 @@ assertEquals("Test message", testSink.events[0].message)
 ## Simple vs Structured Logging
 
 Both APIs share the same pipeline. `LoggerFactory.install()` configuration - sinks, level
-filtering, and per-tag overrides - applies to `Log.*` calls as well as `Logger` calls.
+filtering, and per-tag overrides - applies to `Log.*` calls as well as `Logger` calls, including
+loggers obtained before `install()` ran (for example one stored in a companion object).
 
 | Feature                        | Simple `Log` API                     | Structured `Logger` API  |
 |--------------------------------|--------------------------------------|--------------------------|

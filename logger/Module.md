@@ -21,9 +21,10 @@ severity ladder (`VERBOSE`..`FATAL`, `OFF`).
 
 Pipeline internals and the immutable event model. `DefaultLogger` assembles the read-only `LogEvent`
 (timestamp, level, tag, message, throwable, attributes, resolved context, thread name). `LogPipeline`
-filters via `LogPolicy` and fans out to every sink; `FATAL` flushes then throws. `LoggerConfig`
-configures `minLevel` and per-tag overrides. `LogContext` and `LogContextHolder` carry contextual
-key-value data merged into every event.
+filters via `LogPolicy` and fans out to every sink; `FATAL` flushes then throws, even when filtered
+out. Loggers read the installed pipeline on every call, so a later `install` reaches them too.
+`LoggerConfig` configures `minLevel` and per-tag overrides. `LogContext` and `LogContextHolder`
+carry contextual key-value data merged into every event.
 
 # Package dev.shivathapaa.logger.formatters
 
@@ -34,5 +35,6 @@ read-only snapshot and must not mutate it.
 # Package dev.shivathapaa.logger.sink
 
 `LogSink` is the output SPI (`emit` + optional `flush`). Bundled sinks: `DefaultLogSink` (routes to
-the platform-native logger), `ConsoleSink` (`println`), `RemoteLogSink` (delegates to a sender), and
+Logcat, `NSLog`, the JS `console`, or stdout on JVM/Linux/MinGW, rendering each throwable once),
+`ConsoleSink` (`println`), `RemoteLogSink` (delegates to a sender), and
 `TestSink` (capture for tests). Sinks compose: wrap another sink to redact, sample, or route.
