@@ -1,19 +1,20 @@
 package dev.shivathapaa.logger.core
 
-import platform.windows.OutputDebugStringW
-
+/**
+ * Windows implementation. Writes to standard output, visible in the console running the
+ * program; `OutputDebugString` would only reach an attached debugger.
+ */
 internal actual class PlatformLogger actual constructor(private val tag: String) {
-
-    actual fun v(message: String, tag: String) {
-        log("VERBOSE", tag, message, null)
+    actual fun v(message: String, tag: String, throwable: Throwable?) {
+        log("VERBOSE", tag, message, throwable)
     }
 
-    actual fun d(message: String, tag: String) {
-        log("DEBUG", tag, message, null)
+    actual fun d(message: String, tag: String, throwable: Throwable?) {
+        log("DEBUG", tag, message, throwable)
     }
 
-    actual fun i(message: String, tag: String) {
-        log("INFO", tag, message, null)
+    actual fun i(message: String, tag: String, throwable: Throwable?) {
+        log("INFO", tag, message, throwable)
     }
 
     actual fun w(message: String, tag: String, throwable: Throwable?) {
@@ -35,14 +36,11 @@ internal actual class PlatformLogger actual constructor(private val tag: String)
         throwable: Throwable?
     ) {
         val resolvedTag = tag.ifEmpty { this.tag }
-        val fullMessage = buildString {
-            append("$level $resolvedTag: $message\n")
-            if (throwable != null) {
-                append(throwable.stackTraceToString())
-                append('\n')
-            }
+        val line = "$level $resolvedTag: $message"
+        if (throwable == null) {
+            println(line)
+        } else {
+            println("$line\n${throwable.stackTraceToString().trimEnd()}")
         }
-
-        OutputDebugStringW(fullMessage)
     }
 }

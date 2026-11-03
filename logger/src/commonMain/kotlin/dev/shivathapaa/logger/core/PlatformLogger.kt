@@ -6,15 +6,18 @@ import dev.shivathapaa.logger.api.KMP_LOGGER_DEFAULT_TAG
  * A platform-specific logger implementation.
  * This class is expected to be implemented for each supported platform (e.g., Android, iOS, JVM).
  *
+ * Every method renders its `throwable`, when present, exactly once through the platform channel,
+ * so `message` must not already contain the stack trace.
+ *
  * @property tag The default tag used for logging if not provided in individual log calls.
  */
 internal expect class PlatformLogger(tag: String = KMP_LOGGER_DEFAULT_TAG) {
     /** Logs a verbose message. */
-    fun v(message: String, tag: String)
+    fun v(message: String, tag: String, throwable: Throwable? = null)
     /** Logs a debug message. */
-    fun d(message: String, tag: String)
+    fun d(message: String, tag: String, throwable: Throwable? = null)
     /** Logs an info message. */
-    fun i(message: String, tag: String)
+    fun i(message: String, tag: String, throwable: Throwable? = null)
     /** Logs a warning message. */
     fun w(message: String, tag: String, throwable: Throwable? = null)
     /** Logs an error message. */

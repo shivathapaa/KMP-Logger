@@ -3,39 +3,32 @@ package dev.shivathapaa.logger.core
 import android.util.Log
 
 internal actual class PlatformLogger actual constructor(tag: String) {
-    actual fun v(message: String, tag: String) {
-        Log.v(tag, message)
+    actual fun v(message: String, tag: String, throwable: Throwable?) {
+        Log.v(tag, withStackTrace(message, throwable))
     }
 
-    actual fun d(message: String, tag: String) {
-        Log.d(tag, message)
+    actual fun d(message: String, tag: String, throwable: Throwable?) {
+        Log.d(tag, withStackTrace(message, throwable))
     }
 
-    actual fun i(message: String, tag: String) {
-        Log.i(tag, message)
+    actual fun i(message: String, tag: String, throwable: Throwable?) {
+        Log.i(tag, withStackTrace(message, throwable))
     }
 
     actual fun w(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            Log.w(tag, message, throwable)
-        } else {
-            Log.w(tag, message)
-        }
+        Log.w(tag, withStackTrace(message, throwable))
     }
 
     actual fun e(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            Log.e(tag, message, throwable)
-        } else {
-            Log.e(tag, message)
-        }
+        Log.e(tag, withStackTrace(message, throwable))
     }
 
     actual fun wtf(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            Log.wtf(tag, message, throwable)
-        } else {
-            Log.wtf(tag, message)
-        }
+        Log.wtf(tag, withStackTrace(message, throwable))
     }
+
+    // Appended here rather than passed to Log's throwable overloads: Log.getStackTraceString
+    // drops the whole trace when any cause in the chain is an UnknownHostException.
+    private fun withStackTrace(message: String, throwable: Throwable?): String =
+        if (throwable == null) message else "$message\n${throwable.stackTraceToString().trimEnd()}"
 }
