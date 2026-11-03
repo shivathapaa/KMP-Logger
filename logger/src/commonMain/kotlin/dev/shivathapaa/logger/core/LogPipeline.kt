@@ -26,14 +26,16 @@ internal class LogPipeline(
 
     /**
      * Processes a log event by checking it against the policy and emitting it to sinks if allowed.
-     * If the log level is [LogLevel.FATAL], it flushes all sinks and throws a [RuntimeException].
+     *
+     * A [LogLevel.FATAL] event then flushes all sinks and throws a [RuntimeException], even when
+     * the policy filtered it out: FATAL never returns normally, whatever the configuration.
      *
      * @param event The log event to process.
      */
     fun process(event: LogEvent) {
-        if (!policy.allows(event)) return
-
-        sinks.forEach { it.emit(event) }
+        if (policy.allows(event)) {
+            sinks.forEach { it.emit(event) }
+        }
 
         if (event.level == LogLevel.FATAL) {
             sinks.forEach { it.flush() }

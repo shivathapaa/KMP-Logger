@@ -103,7 +103,8 @@ object Log {
     /**
      * Logs a FATAL message and throws a [RuntimeException] after all sinks have been flushed.
      *
-     * This method never returns normally. Use only for unrecoverable errors.
+     * This method never returns normally, even when FATAL is filtered out by the installed
+     * policy. Use only for unrecoverable errors.
      *
      * @param message The message to log.
      * @param tag The tag to identify the log source. Defaults to the current default tag.

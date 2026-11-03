@@ -118,4 +118,12 @@ class DefaultLoggerTest {
             logger().log(LogLevel.FATAL) { "fatal" }
         }
     }
+
+    @Test
+    fun fatalThrowsEvenWhenFiltered() {
+        assertFailsWith<RuntimeException> {
+            logger(minLevel = LogLevel.OFF).log(LogLevel.FATAL) { "fatal" }
+        }
+        assertTrue(sink.events.isEmpty())
+    }
 }
