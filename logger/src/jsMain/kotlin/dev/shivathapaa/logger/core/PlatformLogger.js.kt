@@ -1,16 +1,28 @@
 package dev.shivathapaa.logger.core
 
 internal actual class PlatformLogger actual constructor(private val tag: String) {
-    actual fun v(message: String, tag: String) {
-        console.log(format("VERBOSE", tag, message))
+    actual fun v(message: String, tag: String, throwable: Throwable?) {
+        if (throwable != null) {
+            console.log(format("VERBOSE", tag, message), throwable)
+        } else {
+            console.log(format("VERBOSE", tag, message))
+        }
     }
 
-    actual fun d(message: String, tag: String) {
-        console.log(format("DEBUG", tag, message))
+    actual fun d(message: String, tag: String, throwable: Throwable?) {
+        if (throwable != null) {
+            console.log(format("DEBUG", tag, message), throwable)
+        } else {
+            console.log(format("DEBUG", tag, message))
+        }
     }
 
-    actual fun i(message: String, tag: String) {
-        console.info(format("INFO", tag, message))
+    actual fun i(message: String, tag: String, throwable: Throwable?) {
+        if (throwable != null) {
+            console.info(format("INFO", tag, message), throwable)
+        } else {
+            console.info(format("INFO", tag, message))
+        }
     }
 
     actual fun w(message: String, tag: String, throwable: Throwable?) {

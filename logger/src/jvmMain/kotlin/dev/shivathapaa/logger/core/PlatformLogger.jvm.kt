@@ -1,47 +1,46 @@
 package dev.shivathapaa.logger.core
 
-import java.util.logging.Level
-import java.util.logging.Logger
-
-internal actual class PlatformLogger actual constructor(tag: String) {
-    private val logger = Logger.getLogger(tag).apply {
-        level = Level.ALL
-        handlers.forEach { it.level = Level.ALL }
+/**
+ * JVM implementation. Writes to standard output, so every level is visible without configuring
+ * `java.util.logging`, whose default console handler hides anything below INFO.
+ */
+internal actual class PlatformLogger actual constructor(private val tag: String) {
+    actual fun v(message: String, tag: String, throwable: Throwable?) {
+        log("VERBOSE", tag, message, throwable)
     }
 
-    actual fun v(message: String, tag: String) {
-        logger.finest(message)
+    actual fun d(message: String, tag: String, throwable: Throwable?) {
+        log("DEBUG", tag, message, throwable)
     }
 
-    actual fun d(message: String, tag: String) {
-        logger.fine(message)
-    }
-
-    actual fun i(message: String, tag: String) {
-        logger.info(message)
+    actual fun i(message: String, tag: String, throwable: Throwable?) {
+        log("INFO", tag, message, throwable)
     }
 
     actual fun w(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            logger.log(Level.WARNING, message, throwable)
-        } else {
-            logger.warning(message)
-        }
+        log("WARN", tag, message, throwable)
     }
 
     actual fun e(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            logger.log(Level.SEVERE, message, throwable)
-        } else {
-            logger.severe(message)
-        }
+        log("ERROR", tag, message, throwable)
     }
 
     actual fun wtf(message: String, tag: String, throwable: Throwable?) {
-        if (throwable != null) {
-            logger.log(Level.SEVERE, message, throwable)
+        log("FATAL", tag, message, throwable)
+    }
+
+    private fun log(
+        level: String,
+        tag: String,
+        message: String,
+        throwable: Throwable?
+    ) {
+        val resolvedTag = tag.ifEmpty { this.tag }
+        val line = "$level $resolvedTag: $message"
+        if (throwable == null) {
+            println(line)
         } else {
-            logger.severe(message)
+            println("$line\n${throwable.stackTraceToString().trimEnd()}")
         }
     }
 }
