@@ -19,7 +19,7 @@ class DefaultLoggerTest {
 
     private fun logger(minLevel: LogLevel = LogLevel.VERBOSE, tag: String = "Test"): DefaultLogger {
         val pipeline = LogPipeline(LogPolicy(minLevel, emptyMap()), listOf(sink))
-        return DefaultLogger(tag, pipeline)
+        return DefaultLogger(tag, currentPipeline = { pipeline })
     }
 
     @Test

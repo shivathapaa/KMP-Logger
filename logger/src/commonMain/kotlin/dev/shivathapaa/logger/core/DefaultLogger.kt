@@ -15,14 +15,15 @@ import dev.shivathapaa.logger.api.StructuredLogger
  *
  * @property name The logger name, typically the class or module name used
  *   as the tag in log output.
- * @property pipeline The pipeline responsible for filtering and dispatching
- *   [LogEvent]s to configured sinks.
+ * @property currentPipeline Returns the pipeline that filters and dispatches [LogEvent]s to the
+ *   configured sinks. It is read on every call, so a logger obtained before
+ *   [dev.shivathapaa.logger.api.LoggerFactory.install] follows the configuration installed later.
  * @property boundContext Context carried by this logger instance and merged into every
  *   event it emits, on top of the ambient context. Empty unless [withContext] was used.
  */
 internal class DefaultLogger(
     private val name: String,
-    private val pipeline: LogPipeline,
+    private val currentPipeline: () -> LogPipeline,
     private val boundContext: LogContext = LogContext()
 ) : StructuredLogger {
 
@@ -44,6 +45,9 @@ internal class DefaultLogger(
         message: () -> String
     ) {
         if (level == LogLevel.OFF) return
+        // Read once so the filter below and the dispatch see the same configuration even if
+        // install() runs concurrently.
+        val pipeline = currentPipeline()
         if (!pipeline.wouldProcess(level, name)) return
 
         val event = LogEvent(
@@ -77,5 +81,5 @@ internal class DefaultLogger(
      * binding costs nothing for suppressed levels.
      */
     internal fun withBoundContext(ctx: LogContext): DefaultLogger =
-        DefaultLogger(name, pipeline, boundContext.merge(ctx))
+        DefaultLogger(name, currentPipeline, boundContext.merge(ctx))
 }

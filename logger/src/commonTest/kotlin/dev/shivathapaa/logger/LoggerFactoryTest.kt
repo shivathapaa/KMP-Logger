@@ -46,18 +46,22 @@ class LoggerFactoryTest {
     }
 
     @Test
-    fun installInvalidatesCache() {
-        val before = LoggerFactory.get("CacheTest")
+    fun loggerObtainedBeforeInstallFollowsNewConfig() {
+        val early = LoggerFactory.get("EarlyTag")
+        val laterSink = TestSink()
 
         LoggerFactory.install(
             LoggerConfig.Builder()
-                .minLevel(LogLevel.INFO)
-                .addSink(sink)
+                .minLevel(LogLevel.WARN)
+                .addSink(laterSink)
                 .build()
         )
 
-        val after = LoggerFactory.get("CacheTest")
-        assertTrue(before !== after)
+        early.info { "filtered by the new minLevel" }
+        early.warn { "reaches the new sink" }
+
+        assertTrue(sink.events.isEmpty())
+        assertEquals(listOf("reaches the new sink"), laterSink.events.map { it.message })
     }
 
     @Test
