@@ -20,12 +20,12 @@ import dev.shivathapaa.logger.core.LogEvent
  *
  * Example output (`showEmoji = false`):
  * ```json
- * {"level":"ERROR","logger":"AuthService","message":"Login failed","attributes":{"userId":42}}
+ * {"level":"ERROR","logger":"AuthService","timestamp":1711785600000,"message":"Login failed","attributes":{"userId":42}}
  * ```
  *
  * Example output (`showEmoji = true`):
  * ```json
- * {"level":"ERROR","levelEmoji":"❤️","logger":"AuthService","message":"Login failed"}
+ * {"level":"ERROR","levelEmoji":"❤️","logger":"AuthService","timestamp":1711785600000,"message":"Login failed"}
  * ```
  *
  * @property showEmoji Whether to include a `levelEmoji` field in the JSON output.
@@ -110,7 +110,7 @@ private fun String.escapeJson(): String = buildString(length) {
             c == '\r' -> append("\\r")
             c == '\t' -> append("\\t")
             c == '\b' -> append("\\b")
-            c == '' -> append("\\f")
+            c == '\u000C' -> append("\\f")
             // RFC 8259 section 7: every character below U+0020 must be escaped.
             c < ' ' -> append("\\u").append(c.code.toString(16).padStart(4, '0'))
             else -> append(c)
