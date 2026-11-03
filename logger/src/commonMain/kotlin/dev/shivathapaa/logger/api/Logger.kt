@@ -79,7 +79,10 @@ class Logger internal constructor(
     ) = delegate.log(LogLevel.ERROR, throwable, attrs, message)
 
     /**
-     * Logs a fatal message. This will likely cause the application to terminate after processing.
+     * Logs a fatal message, flushes all sinks, then throws a [RuntimeException].
+     *
+     * Never returns normally, even when FATAL is filtered out by the installed policy: the event
+     * is then not emitted, but the exception is still thrown.
      *
      * @param throwable An optional exception.
      * @param attrs A builder for adding structured attributes.

@@ -31,7 +31,8 @@ internal class DefaultLogger(
      * Assembles and submits a [LogEvent] to the pipeline.
      *
      * The policy check runs before [message] is evaluated, so message
-     * construction is skipped entirely for suppressed log levels.
+     * construction is skipped entirely for suppressed log levels. [LogLevel.FATAL] is the
+     * exception: it is always assembled, because the pipeline throws for it even when filtered.
      *
      * @param level The severity level of the log.
      * @param throwable An optional exception associated with the log.
@@ -48,7 +49,8 @@ internal class DefaultLogger(
         // Read once so the filter below and the dispatch see the same configuration even if
         // install() runs concurrently.
         val pipeline = currentPipeline()
-        if (!pipeline.wouldProcess(level, name)) return
+        // FATAL bypasses the early return: it must end the caller's flow even when filtered out.
+        if (level != LogLevel.FATAL && !pipeline.wouldProcess(level, name)) return
 
         val event = LogEvent(
             timestamp = currentTimeMillis(),

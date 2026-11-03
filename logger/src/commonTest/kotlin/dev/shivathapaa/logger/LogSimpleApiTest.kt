@@ -105,6 +105,21 @@ class LogSimpleApiTest {
     }
 
     @Test
+    fun fatalThrowsEvenWhenLoggingIsOff() {
+        LoggerFactory.install(
+            LoggerConfig.Builder()
+                .minLevel(LogLevel.OFF)
+                .addSink(sink)
+                .build()
+        )
+
+        assertFailsWith<RuntimeException> {
+            Log.fatal("unrecoverable")
+        }
+        assertTrue(sink.events.isEmpty())
+    }
+
+    @Test
     fun fatalWithThrowableAttachesCause() {
         val cause = IllegalStateException("root")
         val ex = assertFailsWith<RuntimeException> {

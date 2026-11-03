@@ -5,8 +5,10 @@ import dev.shivathapaa.logger.core.LogContext
 import dev.shivathapaa.logger.core.LogEvent
 import dev.shivathapaa.logger.core.LogPipeline
 import dev.shivathapaa.logger.core.LogPolicy
+import dev.shivathapaa.logger.sink.LogSink
 import dev.shivathapaa.logger.sink.TestSink
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -68,7 +70,26 @@ class LogPipelineTest {
         val ex = assertFailsWith<RuntimeException> {
             pipeline().process(event(LogLevel.FATAL, "boom"))
         }
-        assertTrue(ex.message!!.contains("boom"))
+        assertContains(ex.message.orEmpty(), "boom")
+    }
+
+    @Test
+    fun fatalFlushesAndThrowsEvenWhenFiltered() {
+        var flushes = 0
+        val flushRecordingSink = object : LogSink {
+            override fun emit(event: LogEvent) = sink.emit(event)
+
+            override fun flush() {
+                flushes++
+            }
+        }
+        val silenced = LogPipeline(LogPolicy(LogLevel.OFF, emptyMap()), listOf(flushRecordingSink))
+
+        assertFailsWith<RuntimeException> {
+            silenced.process(event(LogLevel.FATAL))
+        }
+        assertTrue(sink.events.isEmpty())
+        assertEquals(1, flushes)
     }
 
     @Test

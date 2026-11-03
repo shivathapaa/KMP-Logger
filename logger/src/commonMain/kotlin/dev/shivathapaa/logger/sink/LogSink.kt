@@ -49,7 +49,7 @@ interface LogSink {
 
     /**
      * Flushes any buffered log events.
-     * Called automatically when a FATAL log occurs or during shutdown.
+     * Called automatically before a FATAL log throws.
      */
     fun flush() {}
 }
